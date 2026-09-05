@@ -1,6 +1,7 @@
 import express, { Application } from 'express';
 import cors from 'cors';
 import healthRouter from './routes/health.route';
+import analyzeRouter from './routes/analyze.route';
 import { errorHandler, notFoundHandler } from './middleware/error.middleware';
 
 const app: Application = express();
@@ -11,6 +12,7 @@ app.use(express.json());
 
 // API Routes
 app.use('/api/health', healthRouter);
+app.use('/api/analyze', analyzeRouter);
 
 // 404 Not Found handler for undefined routes
 app.use(notFoundHandler);
