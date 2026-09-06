@@ -44,12 +44,70 @@ export interface RepositoryMetadata {
 }
 
 /**
+ * Represents a file item in the repository structure.
+ */
+export interface FileItem {
+  path: string;
+  type: 'file';
+  size?: number;
+}
+
+/**
+ * Represents a directory item in the repository structure.
+ */
+export interface DirectoryItem {
+  path: string;
+  type: 'directory';
+}
+
+/**
+ * Represents the extracted repository structure and file tree.
+ */
+export interface RepositoryStructure {
+  totalFiles: number;
+  returnedFiles: number;
+  totalDirectories: number;
+  returnedDirectories: number;
+  truncated: boolean;
+  responseLimited: boolean;
+  files: FileItem[];
+  directories: DirectoryItem[];
+  importantFiles: string[];
+}
+
+/**
+ * Represents extracted text evidence from an important repository file.
+ */
+export interface FileContentEvidence {
+  path: string;
+  size: number;
+  content: string | null;
+  truncated: boolean;
+  fetched: boolean;
+  skipReason?: string;
+}
+
+/**
+ * Collection of extracted important file contents and summary metrics.
+ */
+export interface RepositoryFileContents {
+  files: FileContentEvidence[];
+  fetchedFiles: number;
+  skippedFiles: number;
+  truncatedFiles: number;
+  totalContentBytes: number;
+  contentLimited: boolean;
+}
+
+/**
  * Successful response payload for POST /api/analyze.
  */
 export interface AnalyzeSuccessResponse {
   success: true;
   data: {
     repository: RepositoryMetadata;
+    structure: RepositoryStructure;
+    fileContents: RepositoryFileContents;
   };
 }
 

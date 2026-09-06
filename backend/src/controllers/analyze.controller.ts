@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
-import { parseGitHubUrl } from '../utils/github-url';
-import { githubService, GitHubServiceError } from '../services/github.service';
+import { parseGitHubUrl } from '../utils/github-url.js';
+import { githubService, GitHubServiceError } from '../services/github.service.js';
 
 // Zod validation schema for request payload
 const analyzeBodySchema = z.object({
@@ -10,7 +10,7 @@ const analyzeBodySchema = z.object({
 
 /**
  * Controller for POST /api/analyze
- * Validates GitHub URL, fetches real repository metadata from GitHub REST API, and returns formatted response.
+ * Validates GitHub URL, fetches metadata, tree structure, and important file contents from GitHub API.
  */
 export const analyzeRepository = async (req: Request, res: Response): Promise<void> => {
   // Check for missing or empty request body object
@@ -59,17 +59,34 @@ export const analyzeRepository = async (req: Request, res: Response): Promise<vo
   }
 
   try {
-    // Fetch real repository metadata from GitHub API via GitHub service
+    // 1. Fetch real repository metadata from GitHub API
     const repositoryMetadata = await githubService.fetchRepositoryMetadata(
       parsedRepo.owner,
       parsedRepo.repository
     );
 
-    // Return success response containing repository metadata
+    // 2. Fetch repository file and folder structure using default branch
+    const repositoryStructure = await githubService.fetchRepositoryTree(
+      parsedRepo.owner,
+      parsedRepo.repository,
+      repositoryMetadata.defaultBranch
+    );
+
+    // 3. Fetch text contents for selected important files using default branch
+    const repositoryFileContents = await githubService.fetchImportantFileContents(
+      parsedRepo.owner,
+      parsedRepo.repository,
+      repositoryMetadata.defaultBranch,
+      repositoryStructure.importantFiles
+    );
+
+    // Return success response containing metadata, structure, and fileContents
     res.status(200).json({
       success: true,
       data: {
-        repository: repositoryMetadata
+        repository: repositoryMetadata,
+        structure: repositoryStructure,
+        fileContents: repositoryFileContents
       }
     });
   } catch (error: any) {

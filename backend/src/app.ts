@@ -1,8 +1,8 @@
 import express, { Application } from 'express';
 import cors from 'cors';
-import healthRouter from './routes/health.route';
-import analyzeRouter from './routes/analyze.route';
-import { errorHandler, notFoundHandler } from './middleware/error.middleware';
+import healthRouter from './routes/health.route.js';
+import analyzeRouter from './routes/analyze.route.js';
+import { errorHandler, notFoundHandler } from './middleware/error.middleware.js';
 
 const app: Application = express();
 

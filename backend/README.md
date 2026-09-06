@@ -1,11 +1,11 @@
-# GitHub Repo Guide — Backend Foundation & GitHub API Integration
+# GitHub Repo Guide — Backend Foundation, Metadata, Tree & File Contents Analysis
 
 This is the backend for **GitHub Repo Guide**, built with **Node.js**, **Express.js**, **TypeScript**, **Zod**, and **Octokit**.
 
-It fetches real repository metadata from GitHub's REST API, cleans and transforms the data, and returns a structured response to the client.
+It validates GitHub repository URLs, retrieves repository metadata, recursively analyzes file and folder structures, and extracts text contents from key configuration, manifest, and entry-point files.
 
 > [!NOTE]
-> Repository file analysis, repository tree inspection, technology detection, README parsing, and AI integration have **NOT** been implemented yet. This step focuses exclusively on GitHub REST API integration and repository metadata retrieval.
+> AI integration, technology detection engine, dependency interpretation, repository architecture explanation, health score generation, database storage, and frontend UI have **NOT** been implemented yet. This step focuses on retrieving text contents from important files to serve as evidence for downstream analysis.
 
 ---
 
@@ -41,9 +41,6 @@ Set your environment variables in `.env`:
 PORT=5000
 GITHUB_TOKEN=your_github_personal_access_token_here
 ```
-
-> [!IMPORTANT]
-> Never commit your `.env` file or expose your `GITHUB_TOKEN` in git repositories or client-side code. `.env` is included in `.gitignore`.
 
 ---
 
@@ -87,7 +84,7 @@ Verifies backend server availability.
 
 ### 2. Repository Analyze (`POST /api/analyze`)
 
-Validates a public GitHub URL and retrieves real repository metadata from the GitHub REST API.
+Validates a public GitHub URL and retrieves real repository metadata, file tree structure, and decoded text content for up to 20 important files.
 
 **Request:**
 - **Method**: `POST`
@@ -120,7 +117,7 @@ Validates a public GitHub URL and retrieves real repository metadata from the Gi
       "watchers": 228000,
       "openIssues": 1200,
       "defaultBranch": "main",
-      "topics": ["declarative", "frontend", "javascript", "library", "react", "ui"],
+      "topics": ["declarative", "frontend", "javascript", "react", "ui"],
       "license": "MIT",
       "createdAt": "2013-05-24T16:15:54Z",
       "updatedAt": "2026-09-05T20:00:00Z",
@@ -128,6 +125,40 @@ Validates a public GitHub URL and retrieves real repository metadata from the Gi
       "archived": false,
       "disabled": false,
       "size": 412345
+    },
+    "structure": {
+      "totalFiles": 7213,
+      "returnedFiles": 500,
+      "totalDirectories": 641,
+      "returnedDirectories": 300,
+      "truncated": false,
+      "responseLimited": true,
+      "files": [...],
+      "directories": [...],
+      "importantFiles": ["README.md", "package.json", "..."]
+    },
+    "fileContents": {
+      "files": [
+        {
+          "path": "README.md",
+          "size": 1420,
+          "content": "# React\nReact is a JavaScript library...",
+          "truncated": false,
+          "fetched": true
+        },
+        {
+          "path": "package.json",
+          "size": 750,
+          "content": "{\n  \"name\": \"react\",\n  \"private\": true\n}",
+          "truncated": false,
+          "fetched": true
+        }
+      ],
+      "fetchedFiles": 8,
+      "skippedFiles": 0,
+      "truncatedFiles": 0,
+      "totalContentBytes": 18450,
+      "contentLimited": false
     }
   }
 }
@@ -168,54 +199,23 @@ Validates a public GitHub URL and retrieves real repository metadata from the Gi
   }
   ```
 
-- **500 Internal Server Error** (`GITHUB_CONFIG_ERROR`):
-  ```json
-  {
-    "success": false,
-    "error": {
-      "code": "GITHUB_CONFIG_ERROR",
-      "message": "GitHub API authentication failed or token is invalid."
-    }
-  }
-  ```
+---
+
+## 🛡️ Content Safety & Bounding Limits
+
+- **Maximum Files Fetched**: Up to 20 files (`MAX_FILES_TO_FETCH = 20`)
+- **Per-File Content Limit**: 50 KB hard byte limit (`MAX_FILE_CONTENT_BYTES = 50 * 1024`). Files exceeding 50 KB are truncated cleanly with `truncated: true`.
+- **Total Content Budget**: 500 KB hard byte limit (`MAX_TOTAL_CONTENT_BYTES = 500 * 1024`). If fetching a file would breach 500 KB, content fetching stops and `contentLimited` is set to `true`.
+- **Binary & Non-Text Handling**: Binary file extensions (`.png`, `.jpg`, `.pdf`, `.zip`, `.exe`, etc.) and buffers containing null bytes are skipped safely with `skipReason: "binary_or_unsupported"`. Base64 content is decoded to UTF-8 text.
 
 ---
 
 ## 🧪 Postman Test Suite
 
-| Test Case | Method | URL | Body (JSON) | Expected Status | Expected Code |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **1. React Repo** | `POST` | `http://localhost:5000/api/analyze` | `{"url": "https://github.com/facebook/react"}` | `200 OK` | `success: true` |
-| **2. VS Code Repo** | `POST` | `http://localhost:5000/api/analyze` | `{"url": "https://github.com/microsoft/vscode"}` | `200 OK` | `success: true` |
-| **3. Nonexistent Repo** | `POST` | `http://localhost:5000/api/analyze` | `{"url": "https://github.com/nonexistent-owner-xyz/nonexistent-repo-xyz"}` | `404 Not Found` | `REPOSITORY_NOT_FOUND` |
-| **4. Invalid URL** | `POST` | `http://localhost:5000/api/analyze` | `{"url": "https://google.com"}` | `400 Bad Request` | `INVALID_GITHUB_URL` |
-| **5. Health Endpoint** | `GET` | `http://localhost:5000/api/health` | *(None)* | `200 OK` | `status: "ok"` |
-
----
-
-## 📁 Architecture
-
-```
-backend/
-├── src/
-│   ├── controllers/
-│   │   ├── analyze.controller.ts # Validates input and delegates to GitHub service
-│   │   └── health.controller.ts  # GET /api/health controller
-│   ├── middleware/
-│   │   └── error.middleware.ts   # Centralized error handler
-│   ├── routes/
-│   │   ├── analyze.route.ts      # Route for POST /api/analyze
-│   │   └── health.route.ts       # Route for GET /api/health
-│   ├── services/
-│   │   └── github.service.ts     # Communicates with GitHub API via Octokit
-│   ├── types/
-│   │   └── repository.types.ts   # Repository metadata interfaces
-│   ├── utils/
-│   │   └── github-url.ts         # GitHub URL validation and parser
-│   ├── app.ts                    # Express application configuration
-│   └── server.ts                 # HTTP server entry point
-├── .env                          # Local environment variables
-├── .env.example                  # Environment template
-├── package.json
-└── tsconfig.json
-```
+| Test Case | Method | URL | Body (JSON) | Expected Status |
+| :--- | :--- | :--- | :--- | :--- |
+| **1. React Repo** | `POST` | `http://localhost:5000/api/analyze` | `{"url": "https://github.com/facebook/react"}` | `200 OK` |
+| **2. VS Code Repo** | `POST` | `http://localhost:5000/api/analyze` | `{"url": "https://github.com/microsoft/vscode"}` | `200 OK` |
+| **3. Nonexistent Repo** | `POST` | `http://localhost:5000/api/analyze` | `{"url": "https://github.com/nonexistent-owner-xyz999/nonexistent-repo-xyz999"}` | `404 Not Found` |
+| **4. Invalid URL** | `POST` | `http://localhost:5000/api/analyze` | `{"url": "https://google.com"}` | `400 Bad Request` |
+| **5. Health Endpoint** | `GET` | `http://localhost:5000/api/health` | *(None)* | `200 OK` |

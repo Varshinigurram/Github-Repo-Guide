@@ -1,4 +1,4 @@
-import { ParsedRepository } from '../types/repository.types';
+import { ParsedRepository } from '../types/repository.types.js';
 
 /**
  * Validates and extracts owner & repository from a public GitHub repository URL.
