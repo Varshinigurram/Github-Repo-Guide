@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { z } from 'zod';
 import { parseGitHubUrl } from '../utils/github-url.js';
 import { githubService, GitHubServiceError } from '../services/github.service.js';
+import { technologyService } from '../services/technology.service.js';
 
 // Zod validation schema for request payload
 const analyzeBodySchema = z.object({
@@ -10,7 +11,8 @@ const analyzeBodySchema = z.object({
 
 /**
  * Controller for POST /api/analyze
- * Validates GitHub URL, fetches metadata, tree structure, and important file contents from GitHub API.
+ * Validates GitHub URL, fetches metadata, tree structure, and important file contents from GitHub API,
+ * and analyzes technology/dependency evidence.
  */
 export const analyzeRepository = async (req: Request, res: Response): Promise<void> => {
   // Check for missing or empty request body object
@@ -80,13 +82,21 @@ export const analyzeRepository = async (req: Request, res: Response): Promise<vo
       repositoryStructure.importantFiles
     );
 
-    // Return success response containing metadata, structure, and fileContents
+    // 4. Analyze repository evidence to detect technologies and dependencies
+    const technologies = technologyService.analyzeRepositoryTechnologies(
+      repositoryMetadata,
+      repositoryStructure,
+      repositoryFileContents
+    );
+
+    // Return success response containing metadata, structure, fileContents, and technologies
     res.status(200).json({
       success: true,
       data: {
         repository: repositoryMetadata,
         structure: repositoryStructure,
-        fileContents: repositoryFileContents
+        fileContents: repositoryFileContents,
+        technologies
       }
     });
   } catch (error: any) {

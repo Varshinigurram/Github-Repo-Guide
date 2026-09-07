@@ -1,11 +1,11 @@
-# GitHub Repo Guide — Backend Foundation, Metadata, Tree & Sequential File Content Analysis
+# GitHub Repo Guide — Backend Step 6: Technology & Dependency Analysis
 
 This is the backend for **GitHub Repo Guide**, built with **Node.js**, **Express.js**, **TypeScript**, **Zod**, and **Octokit**.
 
-It validates GitHub repository URLs, retrieves repository metadata, recursively analyzes file and folder structures, and sequentially extracts text contents from up to 10 important configuration, manifest, and entry-point files.
+It validates GitHub repository URLs, retrieves repository metadata, recursively analyzes file and folder structures, sequentially extracts text contents from up to 10 important configuration, manifest, and entry-point files, and performs deterministic technology and dependency detection.
 
 > [!NOTE]
-> AI integration, technology detection engine, dependency interpretation, repository architecture explanation, health score generation, database storage, and frontend UI have **NOT** been implemented yet.
+> AI/LLM integration, architecture explanation, health score generation, database storage, and frontend UI have **NOT** been implemented yet. Step 6 technology analysis runs 100% deterministically on existing evidence without external AI calls.
 
 ---
 
@@ -84,7 +84,7 @@ Verifies backend server availability.
 
 ### 2. Repository Analyze (`POST /api/analyze`)
 
-Validates a public GitHub URL and retrieves real repository metadata, file tree structure, and decoded text content for up to 10 important files sequentially.
+Validates a public GitHub URL and retrieves real repository metadata, file tree structure, decoded text content for up to 10 important files sequentially, and analyzes technology/dependency evidence.
 
 **Request:**
 - **Method**: `POST`
@@ -159,6 +159,33 @@ Validates a public GitHub URL and retrieves real repository metadata, file tree 
       "truncatedFiles": 0,
       "totalContentBytes": 18450,
       "contentLimited": false
+    },
+    "technologies": {
+      "languages": [
+        { "name": "JavaScript", "category": "language", "confidence": "high", "evidence": ["github_metadata", "repository_files"] },
+        { "name": "TypeScript", "category": "language", "confidence": "high", "evidence": ["repository_files"] }
+      ],
+      "frameworks": [
+        { "name": "React", "category": "frontend-framework", "confidence": "high", "evidence": ["package.json"] }
+      ],
+      "runtimes": [
+        { "name": "Node.js", "category": "runtime", "confidence": "high", "evidence": ["package.json"] }
+      ],
+      "packageManagers": [
+        { "name": "Yarn", "category": "package-manager", "confidence": "high", "evidence": ["yarn.lock"] }
+      ],
+      "databases": [],
+      "buildTools": [
+        { "name": "Rollup", "category": "build-tool", "confidence": "high", "evidence": ["package.json"] }
+      ],
+      "testingTools": [
+        { "name": "Jest", "category": "testing-tool", "confidence": "high", "evidence": ["package.json"] }
+      ],
+      "styling": [],
+      "containerization": [],
+      "dependencies": [
+        { "name": "loose-envify", "version": "^1.1.0", "source": "package.json", "category": "production" }
+      ]
     }
   }
 }

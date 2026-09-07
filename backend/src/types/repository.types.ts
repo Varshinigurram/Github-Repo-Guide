@@ -100,6 +100,42 @@ export interface RepositoryFileContents {
 }
 
 /**
+ * Represents a detected technology with evidence and confidence score.
+ */
+export interface DetectedTechnology {
+  name: string;
+  category: string;
+  confidence: 'high' | 'likely' | 'possible';
+  evidence: string[];
+}
+
+/**
+ * Represents an extracted dependency from a project manifest file.
+ */
+export interface ExtractedDependency {
+  name: string;
+  version?: string;
+  source: string;
+  category?: 'production' | 'development';
+}
+
+/**
+ * Full technology analysis result.
+ */
+export interface TechnologyAnalysisResult {
+  languages: DetectedTechnology[];
+  frameworks: DetectedTechnology[];
+  runtimes: DetectedTechnology[];
+  packageManagers: DetectedTechnology[];
+  databases: DetectedTechnology[];
+  buildTools: DetectedTechnology[];
+  testingTools: DetectedTechnology[];
+  styling: DetectedTechnology[];
+  containerization: DetectedTechnology[];
+  dependencies: ExtractedDependency[];
+}
+
+/**
  * Successful response payload for POST /api/analyze.
  */
 export interface AnalyzeSuccessResponse {
@@ -108,6 +144,7 @@ export interface AnalyzeSuccessResponse {
     repository: RepositoryMetadata;
     structure: RepositoryStructure;
     fileContents: RepositoryFileContents;
+    technologies: TechnologyAnalysisResult;
   };
 }
 
