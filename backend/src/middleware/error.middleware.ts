@@ -1,8 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
+import { GitHubServiceError } from '../services/github.service.js';
 
 /**
  * Centralized error handling middleware.
- * Catches uncaught backend errors and returns a structured JSON error response.
+ * Catches uncaught backend errors and returns a structured JSON error response without exposing internal stack traces or secrets.
  */
 export const errorHandler = (
   err: Error,
@@ -10,11 +11,25 @@ export const errorHandler = (
   res: Response,
   _next: NextFunction
 ): void => {
-  console.error('[Error]', err.stack || err.message);
+  if (err instanceof GitHubServiceError) {
+    res.status(err.statusCode).json({
+      success: false,
+      error: {
+        code: err.code,
+        message: err.message
+      }
+    });
+    return;
+  }
+
+  console.error('[Error]', err.message);
 
   res.status(500).json({
-    status: 'error',
-    message: err.message || 'Internal Server Error'
+    success: false,
+    error: {
+      code: 'INTERNAL_SERVER_ERROR',
+      message: 'An internal server error occurred.'
+    }
   });
 };
 
@@ -23,7 +38,10 @@ export const errorHandler = (
  */
 export const notFoundHandler = (req: Request, res: Response): void => {
   res.status(404).json({
-    status: 'fail',
-    message: `Cannot ${req.method} ${req.originalUrl} on this server`
+    success: false,
+    error: {
+      code: 'NOT_FOUND',
+      message: `Cannot ${req.method} ${req.originalUrl} on this server`
+    }
   });
 };

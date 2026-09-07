@@ -106,13 +106,9 @@ class GitHubService {
         );
       }
 
-      if (status === 403 || status === 429) {
-        const message = (error.message && error.message.toLowerCase().includes('rate limit')) || status === 429
-          ? 'GitHub API rate limit reached. Please try again later.'
-          : 'GitHub API rate limit reached. Please try again later.';
-
+      if (status === 403 || status === 429 || (error.message && (error.message.toLowerCase().includes('rate limit') || error.message.toLowerCase().includes('quota')))) {
         throw new GitHubServiceError(
-          message,
+          'GitHub API rate limit reached. Please try again later.',
           429,
           'GITHUB_RATE_LIMITED'
         );
@@ -220,7 +216,7 @@ class GitHubService {
         );
       }
 
-      if (status === 403 || status === 429) {
+      if (status === 403 || status === 429 || (error.message && (error.message.toLowerCase().includes('rate limit') || error.message.toLowerCase().includes('quota')))) {
         throw new GitHubServiceError(
           'GitHub API rate limit reached. Please try again later.',
           429,
@@ -237,7 +233,8 @@ class GitHubService {
   }
 
   /**
-   * Fetches, decodes, and bounds text content for up to 20 selected important repository files.
+   * Fetches, decodes, and bounds text content for up to 10 selected important repository files.
+   * Performs strictly sequential requests (one active request at a time) to avoid secondary rate limits.
    * 
    * @param owner GitHub username or organization name
    * @param repo Repository name
@@ -250,7 +247,7 @@ class GitHubService {
     defaultBranch: string,
     candidateImportantFiles: string[]
   ): Promise<RepositoryFileContents> {
-    const MAX_FILES_TO_FETCH = 20;
+    const MAX_FILES_TO_FETCH = 10;
     const MAX_FILE_CONTENT_BYTES = 50 * 1024; // 50 KB
     const MAX_TOTAL_CONTENT_BYTES = 500 * 1024; // 500 KB
 
@@ -261,101 +258,6 @@ class GitHubService {
       .map(item => item.path)
       .slice(0, MAX_FILES_TO_FETCH);
 
-    // Fetch all prioritized candidate files concurrently in parallel
-    const rawResults = await Promise.all(
-      prioritizedPaths.map(async (filePath) => {
-        if (this.isBinaryFilePath(filePath)) {
-          return {
-            path: filePath,
-            size: 0,
-            content: null,
-            truncated: false,
-            fetched: false,
-            skipReason: 'binary_or_unsupported'
-          };
-        }
-
-        try {
-          const response = await this.octokit.rest.repos.getContent({
-            owner,
-            repo,
-            path: filePath,
-            ref: defaultBranch
-          });
-
-          const data = response.data;
-
-          if (!data || Array.isArray(data) || data.type !== 'file') {
-            return {
-              path: filePath,
-              size: Array.isArray(data) ? 0 : (data as any)?.size || 0,
-              content: null,
-              truncated: false,
-              fetched: false,
-              skipReason: 'not_a_file'
-            };
-          }
-
-          const rawContent = data.content || '';
-          const originalSize = data.size || 0;
-
-          if (!rawContent) {
-            return {
-              path: filePath,
-              size: originalSize,
-              content: '',
-              truncated: false,
-              fetched: true,
-              byteLength: 0
-            };
-          }
-
-          const contentBuffer = Buffer.from(rawContent, 'base64');
-
-          if (this.isBinaryBuffer(contentBuffer)) {
-            return {
-              path: filePath,
-              size: originalSize,
-              content: null,
-              truncated: false,
-              fetched: false,
-              skipReason: 'binary_or_unsupported'
-            };
-          }
-
-          let utf8Text = contentBuffer.toString('utf-8');
-          let textByteLength = Buffer.byteLength(utf8Text, 'utf8');
-          let isFileTruncated = false;
-
-          if (textByteLength > MAX_FILE_CONTENT_BYTES) {
-            const slicedBuffer = Buffer.from(utf8Text, 'utf8').subarray(0, MAX_FILE_CONTENT_BYTES);
-            utf8Text = slicedBuffer.toString('utf8');
-            textByteLength = Buffer.byteLength(utf8Text, 'utf8');
-            isFileTruncated = true;
-          }
-
-          return {
-            path: filePath,
-            size: originalSize,
-            content: utf8Text,
-            truncated: isFileTruncated,
-            fetched: true,
-            byteLength: textByteLength
-          };
-        } catch (error: any) {
-          return {
-            path: filePath,
-            size: 0,
-            content: null,
-            truncated: false,
-            fetched: false,
-            skipReason: error.status === 404 ? 'file_not_found' : 'fetch_failed'
-          };
-        }
-      })
-    );
-
-    // Process raw results sequentially in priority order to enforce cumulative total content byte limit (500 KB)
     const fileEvidences: FileContentEvidence[] = [];
     let fetchedFiles = 0;
     let skippedFiles = 0;
@@ -363,27 +265,14 @@ class GitHubService {
     let totalContentBytes = 0;
     let contentLimited = false;
 
-    for (const item of rawResults) {
-      if (!item.fetched || item.content === null) {
-        fileEvidences.push({
-          path: item.path,
-          size: item.size,
-          content: null,
-          truncated: false,
-          fetched: false,
-          skipReason: item.skipReason || 'unsupported'
-        });
-        skippedFiles++;
-        continue;
-      }
-
-      const itemByteLength = (item as any).byteLength || Buffer.byteLength(item.content, 'utf8');
-
-      if (totalContentBytes + itemByteLength > MAX_TOTAL_CONTENT_BYTES) {
+    // Strictly sequential for...of loop — only ONE active GitHub API request at a time
+    for (const filePath of prioritizedPaths) {
+      // 1. Check cumulative total content byte budget
+      if (totalContentBytes >= MAX_TOTAL_CONTENT_BYTES) {
         contentLimited = true;
         fileEvidences.push({
-          path: item.path,
-          size: item.size,
+          path: filePath,
+          size: 0,
           content: null,
           truncated: false,
           fetched: false,
@@ -393,19 +282,136 @@ class GitHubService {
         continue;
       }
 
-      totalContentBytes += itemByteLength;
-      fetchedFiles++;
-      if (item.truncated) {
-        truncatedFiles++;
+      // 2. Check binary extensions before API call
+      if (this.isBinaryFilePath(filePath)) {
+        fileEvidences.push({
+          path: filePath,
+          size: 0,
+          content: null,
+          truncated: false,
+          fetched: false,
+          skipReason: 'binary_or_unsupported'
+        });
+        skippedFiles++;
+        continue;
       }
 
-      fileEvidences.push({
-        path: item.path,
-        size: item.size,
-        content: item.content,
-        truncated: item.truncated,
-        fetched: true
-      });
+      try {
+        const response = await this.octokit.rest.repos.getContent({
+          owner,
+          repo,
+          path: filePath,
+          ref: defaultBranch
+        });
+
+        const data = response.data;
+
+        // If GitHub returns an array (directory) or missing file object
+        if (!data || Array.isArray(data) || data.type !== 'file') {
+          fileEvidences.push({
+            path: filePath,
+            size: Array.isArray(data) ? 0 : (data as any)?.size || 0,
+            content: null,
+            truncated: false,
+            fetched: false,
+            skipReason: 'not_a_file'
+          });
+          skippedFiles++;
+          continue;
+        }
+
+        const rawContent = data.content || '';
+        const originalSize = data.size || 0;
+
+        if (!rawContent) {
+          fileEvidences.push({
+            path: filePath,
+            size: originalSize,
+            content: '',
+            truncated: false,
+            fetched: true
+          });
+          fetchedFiles++;
+          continue;
+        }
+
+        // Decode base64 to Buffer
+        const contentBuffer = Buffer.from(rawContent, 'base64');
+
+        // Check if buffer contains binary characters
+        if (this.isBinaryBuffer(contentBuffer)) {
+          fileEvidences.push({
+            path: filePath,
+            size: originalSize,
+            content: null,
+            truncated: false,
+            fetched: false,
+            skipReason: 'binary_or_unsupported'
+          });
+          skippedFiles++;
+          continue;
+        }
+
+        let utf8Text = contentBuffer.toString('utf-8');
+        let textByteLength = Buffer.byteLength(utf8Text, 'utf8');
+        let isFileTruncated = false;
+
+        // Truncate individual file if it exceeds 50 KB
+        if (textByteLength > MAX_FILE_CONTENT_BYTES) {
+          const slicedBuffer = Buffer.from(utf8Text, 'utf8').subarray(0, MAX_FILE_CONTENT_BYTES);
+          utf8Text = slicedBuffer.toString('utf8');
+          textByteLength = Buffer.byteLength(utf8Text, 'utf8');
+          isFileTruncated = true;
+          truncatedFiles++;
+        }
+
+        // Check hard total content budget limit
+        if (totalContentBytes + textByteLength > MAX_TOTAL_CONTENT_BYTES) {
+          contentLimited = true;
+          fileEvidences.push({
+            path: filePath,
+            size: originalSize,
+            content: null,
+            truncated: false,
+            fetched: false,
+            skipReason: 'content_budget_exceeded'
+          });
+          skippedFiles++;
+          continue;
+        }
+
+        totalContentBytes += textByteLength;
+        fetchedFiles++;
+        fileEvidences.push({
+          path: filePath,
+          size: originalSize,
+          content: utf8Text,
+          truncated: isFileTruncated,
+          fetched: true
+        });
+      } catch (error: any) {
+        const status = error.status || error.statusCode;
+
+        // Rate limit / Quota check during file content request
+        if (status === 403 || status === 429 || (error.message && (error.message.toLowerCase().includes('rate limit') || error.message.toLowerCase().includes('quota')))) {
+          throw new GitHubServiceError(
+            'GitHub API rate limit reached. Please try again later.',
+            429,
+            'GITHUB_RATE_LIMITED'
+          );
+        }
+
+        // Individual file fetch failure (e.g. 404)
+        fileEvidences.push({
+          path: filePath,
+          size: 0,
+          content: null,
+          truncated: false,
+          fetched: false,
+          skipReason: status === 404 ? 'file_not_found' : 'fetch_failed'
+        });
+        skippedFiles++;
+      }
     }
 
     return {

@@ -1,11 +1,11 @@
-# GitHub Repo Guide — Backend Foundation, Metadata, Tree & File Contents Analysis
+# GitHub Repo Guide — Backend Foundation, Metadata, Tree & Sequential File Content Analysis
 
 This is the backend for **GitHub Repo Guide**, built with **Node.js**, **Express.js**, **TypeScript**, **Zod**, and **Octokit**.
 
-It validates GitHub repository URLs, retrieves repository metadata, recursively analyzes file and folder structures, and extracts text contents from key configuration, manifest, and entry-point files.
+It validates GitHub repository URLs, retrieves repository metadata, recursively analyzes file and folder structures, and sequentially extracts text contents from up to 10 important configuration, manifest, and entry-point files.
 
 > [!NOTE]
-> AI integration, technology detection engine, dependency interpretation, repository architecture explanation, health score generation, database storage, and frontend UI have **NOT** been implemented yet. This step focuses on retrieving text contents from important files to serve as evidence for downstream analysis.
+> AI integration, technology detection engine, dependency interpretation, repository architecture explanation, health score generation, database storage, and frontend UI have **NOT** been implemented yet.
 
 ---
 
@@ -84,7 +84,7 @@ Verifies backend server availability.
 
 ### 2. Repository Analyze (`POST /api/analyze`)
 
-Validates a public GitHub URL and retrieves real repository metadata, file tree structure, and decoded text content for up to 20 important files.
+Validates a public GitHub URL and retrieves real repository metadata, file tree structure, and decoded text content for up to 10 important files sequentially.
 
 **Request:**
 - **Method**: `POST`
@@ -155,7 +155,7 @@ Validates a public GitHub URL and retrieves real repository metadata, file tree 
         }
       ],
       "fetchedFiles": 8,
-      "skippedFiles": 0,
+      "skippedFiles": 2,
       "truncatedFiles": 0,
       "totalContentBytes": 18450,
       "contentLimited": false
@@ -201,12 +201,13 @@ Validates a public GitHub URL and retrieves real repository metadata, file tree 
 
 ---
 
-## 🛡️ Content Safety & Bounding Limits
+## 🛡️ Rate Limit & Content Bounding Architecture
 
-- **Maximum Files Fetched**: Up to 20 files (`MAX_FILES_TO_FETCH = 20`)
-- **Per-File Content Limit**: 50 KB hard byte limit (`MAX_FILE_CONTENT_BYTES = 50 * 1024`). Files exceeding 50 KB are truncated cleanly with `truncated: true`.
-- **Total Content Budget**: 500 KB hard byte limit (`MAX_TOTAL_CONTENT_BYTES = 500 * 1024`). If fetching a file would breach 500 KB, content fetching stops and `contentLimited` is set to `true`.
-- **Binary & Non-Text Handling**: Binary file extensions (`.png`, `.jpg`, `.pdf`, `.zip`, `.exe`, etc.) and buffers containing null bytes are skipped safely with `skipReason: "binary_or_unsupported"`. Base64 content is decoded to UTF-8 text.
+- **Sequential Request Queue**: File contents are fetched **strictly sequentially** (one active API request at a time) to prevent GitHub secondary rate limits and concurrency spikes.
+- **Maximum Files Fetched**: Up to 10 files (`MAX_FILES_TO_FETCH = 10`).
+- **Per-File Content Limit**: 50 KB hard byte limit (`MAX_FILE_CONTENT_BYTES = 50 * 1024`).
+- **Total Content Budget**: 500 KB hard byte limit (`MAX_TOTAL_CONTENT_BYTES = 500 * 1024`).
+- **Server Stability**: GitHub rate limit errors (403/429) return controlled HTTP 429 JSON responses without terminating or crashing the Node/Express server.
 
 ---
 
