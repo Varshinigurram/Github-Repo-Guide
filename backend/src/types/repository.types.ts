@@ -193,6 +193,11 @@ export interface EvidenceRepositorySummary {
   license: string | null;
   topics: string[];
   url: string;
+  pushedAt?: string;
+  updatedAt?: string;
+  archived?: boolean;
+  disabled?: boolean;
+  openIssues?: number;
 }
 
 /**
@@ -224,6 +229,117 @@ export interface RepositoryEvidencePackage {
 }
 
 /**
+ * Overview section of AI repository interpretation.
+ */
+export interface OverviewAnalysis {
+  summary: string;
+  purpose: string;
+  confidence: 'high' | 'medium' | 'low';
+}
+
+/**
+ * How it works section of AI repository interpretation.
+ */
+export interface HowItWorksAnalysis {
+  description: string;
+  steps: string[];
+  confidence: 'high' | 'medium' | 'low';
+}
+
+/**
+ * Interpreted technology role in AI repository interpretation.
+ */
+export interface TechnologyRoleAnalysis {
+  name: string;
+  role: string;
+  confidence: 'high' | 'medium' | 'low';
+  evidence: string[];
+}
+
+/**
+ * Architecture component in AI repository interpretation.
+ */
+export interface ArchitectureComponent {
+  name: string;
+  role: string;
+  evidence: string[];
+}
+
+/**
+ * Architecture section of AI repository interpretation.
+ */
+export interface ArchitectureAnalysis {
+  style: string;
+  components: ArchitectureComponent[];
+  confidence: 'high' | 'medium' | 'low';
+}
+
+/**
+ * Entry point analysis in AI repository interpretation.
+ */
+export interface EntryPointAnalysis {
+  path: string;
+  description: string;
+  confidence: 'high' | 'medium' | 'low';
+}
+
+/**
+ * Setup steps and commands in AI repository interpretation.
+ */
+export interface SetupAnalysis {
+  steps: string[];
+  commands: string[];
+  confidence: 'high' | 'medium' | 'low';
+}
+
+/**
+ * Full structured AI interpretation output produced by Step 8A.
+ */
+export interface RepositoryAIAnalysis {
+  overview: OverviewAnalysis;
+  howItWorks: HowItWorksAnalysis;
+  technologies: TechnologyRoleAnalysis[];
+  architecture: ArchitectureAnalysis;
+  entryPoints: EntryPointAnalysis[];
+  setup: SetupAnalysis;
+  limitations: string[];
+}
+
+/**
+ * Status levels for health categories.
+ */
+export type HealthCategoryStatus = 'strong' | 'good' | 'fair' | 'weak';
+
+/**
+ * Letter grades for overall repository health.
+ */
+export type HealthGrade = 'A' | 'B' | 'C' | 'D' | 'F';
+
+/**
+ * Individual health category evaluation score.
+ */
+export interface HealthCategoryScore {
+  name: string;
+  score: number;
+  maxScore: number;
+  status: HealthCategoryStatus;
+  evidence: string[];
+}
+
+/**
+ * Deterministic repository health analysis output produced by Step 8B.
+ */
+export interface RepositoryHealthResult {
+  score: number;
+  grade: HealthGrade;
+  summary: string;
+  categories: HealthCategoryScore[];
+  strengths: string[];
+  improvements: string[];
+  limitations: string[];
+}
+
+/**
  * Successful response payload for POST /api/analyze.
  */
 export interface AnalyzeSuccessResponse {
@@ -234,6 +350,8 @@ export interface AnalyzeSuccessResponse {
     fileContents: RepositoryFileContents;
     technologies: TechnologyAnalysisResult;
     evidence: RepositoryEvidencePackage;
+    analysis: RepositoryAIAnalysis;
+    health: RepositoryHealthResult;
   };
 }
 
@@ -247,3 +365,5 @@ export interface ErrorResponse {
     message: string;
   };
 }
+
+

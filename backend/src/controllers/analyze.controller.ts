@@ -4,6 +4,8 @@ import { parseGitHubUrl } from '../utils/github-url.js';
 import { githubService, GitHubServiceError } from '../services/github.service.js';
 import { technologyService } from '../services/technology.service.js';
 import { evidenceService } from '../services/evidence.service.js';
+import { aiService, AIServiceError } from '../services/ai.service.js';
+import { healthService } from '../services/health.service.js';
 
 // Zod validation schema for request payload
 const analyzeBodySchema = z.object({
@@ -13,7 +15,8 @@ const analyzeBodySchema = z.object({
 /**
  * Controller for POST /api/analyze
  * Validates GitHub URL, fetches metadata, tree structure, and important file contents from GitHub API,
- * analyzes technology/dependency evidence, and aggregates structured repository evidence.
+ * analyzes technology/dependency evidence, aggregates structured repository evidence, generates
+ * structured AI repository interpretation, and calculates deterministic repository health score.
  */
 export const analyzeRepository = async (req: Request, res: Response): Promise<void> => {
   // Check for missing or empty request body object
@@ -98,7 +101,13 @@ export const analyzeRepository = async (req: Request, res: Response): Promise<vo
       technologies
     );
 
-    // Return success response containing metadata, structure, fileContents, technologies, and evidence
+    // 6. Generate structured AI repository interpretation based strictly on evidence package
+    const analysis = await aiService.analyzeRepositoryEvidence(evidence);
+
+    // 7. Calculate 100% local, deterministic repository health score & breakdown
+    const health = healthService.calculateRepositoryHealth(evidence);
+
+    // Return success response containing metadata, structure, fileContents, technologies, evidence, analysis, and health
     res.status(200).json({
       success: true,
       data: {
@@ -106,11 +115,24 @@ export const analyzeRepository = async (req: Request, res: Response): Promise<vo
         structure: repositoryStructure,
         fileContents: repositoryFileContents,
         technologies,
-        evidence
+        evidence,
+        analysis,
+        health
       }
     });
   } catch (error: any) {
     if (error instanceof GitHubServiceError) {
+      res.status(error.statusCode).json({
+        success: false,
+        error: {
+          code: error.code,
+          message: error.message
+        }
+      });
+      return;
+    }
+
+    if (error instanceof AIServiceError) {
       res.status(error.statusCode).json({
         success: false,
         error: {
@@ -130,3 +152,4 @@ export const analyzeRepository = async (req: Request, res: Response): Promise<vo
     });
   }
 };
+

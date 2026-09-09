@@ -42,7 +42,12 @@ class EvidenceService {
       primaryLanguage: metadata.language,
       license: metadata.license,
       topics: metadata.topics,
-      url: metadata.url
+      url: metadata.url,
+      pushedAt: metadata.pushedAt,
+      updatedAt: metadata.updatedAt,
+      archived: metadata.archived,
+      disabled: metadata.disabled,
+      openIssues: metadata.openIssues
     };
 
     // 2. Structure Evidence Summary
