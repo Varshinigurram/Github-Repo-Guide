@@ -25,15 +25,205 @@ export class GitHubServiceError extends Error {
 
 /**
  * Service for communicating with GitHub REST API via Octokit.
+ * Implements in-memory rate-limit pre-flight checking, header parsing, and safe dev-only logging.
  */
 class GitHubService {
-  private octokit: Octokit;
+  private octokitInstance: Octokit | null = null;
+  private currentToken: string | null = null;
 
-  constructor() {
-    const token = process.env.GITHUB_TOKEN?.trim();
-    this.octokit = new Octokit({
-      auth: token || undefined
-    });
+  // In-memory rate-limit tracking state
+  private rateLimitLimit: number | null = null;
+  private rateLimitRemaining: number | null = null;
+  private rateLimitReset: number | null = null; // epoch timestamp in ms
+  private secondaryBlockUntil: number | null = null; // epoch timestamp in ms
+
+  /**
+   * Lazily resolves Octokit instance using process.env.GITHUB_TOKEN.
+   * Re-initializes instance if token value changes at runtime.
+   */
+  private get octokit(): Octokit {
+    const activeToken = process.env.GITHUB_TOKEN?.trim() || null;
+    if (!this.octokitInstance || this.currentToken !== activeToken) {
+      this.currentToken = activeToken;
+      this.octokitInstance = new Octokit({
+        auth: activeToken || undefined
+      });
+    }
+    return this.octokitInstance;
+  }
+
+  /**
+   * Pre-flight check to block requests early if backend knows primary or secondary rate limit is active.
+   */
+  public checkRateLimitPreflight(): void {
+    const now = Date.now();
+
+    // 1. Check secondary rate limit block (from retry-after header)
+    if (this.secondaryBlockUntil && now < this.secondaryBlockUntil) {
+      const waitSeconds = Math.max(1, Math.ceil((this.secondaryBlockUntil - now) / 1000));
+      throw new GitHubServiceError(
+        `GitHub API secondary rate limit triggered. Please retry after ${waitSeconds} seconds.`,
+        429,
+        'GITHUB_RATE_LIMITED'
+      );
+    }
+
+    // 2. Check primary rate limit exhaustion (x-ratelimit-remaining === 0)
+    if (this.rateLimitRemaining === 0 && this.rateLimitReset && now < this.rateLimitReset) {
+      const resetSeconds = Math.max(1, Math.ceil((this.rateLimitReset - now) / 1000));
+      throw new GitHubServiceError(
+        `GitHub API rate limit reached. Reset in ${resetSeconds} seconds. Please try again later.`,
+        429,
+        'GITHUB_RATE_LIMITED'
+      );
+    }
+  }
+
+  /**
+   * Parses GitHub API response headers to update in-memory rate limit state and perform safe dev-only logging.
+   * NEVER logs tokens, Authorization headers, or credentials.
+   */
+  private updateRateLimitState(path: string, status: number, headers: Record<string, any>): void {
+    if (!headers) return;
+
+    // Normalize header lookup
+    const getHeader = (name: string): string | undefined => {
+      const lower = name.toLowerCase();
+      for (const [key, value] of Object.entries(headers)) {
+        if (key.toLowerCase() === lower && value !== undefined && value !== null) {
+          return String(value);
+        }
+      }
+      return undefined;
+    };
+
+    const limitVal = getHeader('x-ratelimit-limit');
+    const remainingVal = getHeader('x-ratelimit-remaining');
+    const resetVal = getHeader('x-ratelimit-reset');
+    const retryAfterVal = getHeader('retry-after');
+
+    if (limitVal !== undefined) {
+      const parsed = parseInt(limitVal, 10);
+      if (!isNaN(parsed)) this.rateLimitLimit = parsed;
+    }
+
+    if (remainingVal !== undefined) {
+      const parsed = parseInt(remainingVal, 10);
+      if (!isNaN(parsed)) this.rateLimitRemaining = parsed;
+    }
+
+    if (resetVal !== undefined) {
+      const resetEpochSec = parseInt(resetVal, 10);
+      if (!isNaN(resetEpochSec)) {
+        this.rateLimitReset = resetEpochSec * 1000;
+      }
+    }
+
+    if (retryAfterVal !== undefined) {
+      const retrySec = parseInt(retryAfterVal, 10);
+      if (!isNaN(retrySec) && retrySec > 0) {
+        this.secondaryBlockUntil = Date.now() + (retrySec * 1000);
+      }
+    }
+
+    // Diagnostic logging strictly in development mode
+    if (process.env.NODE_ENV !== 'production') {
+      const remainingStr = this.rateLimitRemaining !== null ? `${this.rateLimitRemaining}` : 'unknown';
+      const limitStr = this.rateLimitLimit !== null ? `${this.rateLimitLimit}` : 'unknown';
+      const resetInSec = this.rateLimitReset ? Math.max(0, Math.ceil((this.rateLimitReset - Date.now()) / 1000)) : 0;
+
+      console.log(
+        `[github] ${path} (status: ${status}) - remaining: ${remainingStr}/${limitStr}, resetIn: ${resetInSec}s`
+      );
+
+      if (this.secondaryBlockUntil && Date.now() < this.secondaryBlockUntil) {
+        const secWait = Math.ceil((this.secondaryBlockUntil - Date.now()) / 1000);
+        console.warn(`[github] Secondary rate limit active! Retry after ${secWait}s`);
+      }
+    }
+  }
+
+  /**
+   * Safe helper method to inspect current GitHub API rate limit state and token validity.
+   * NEVER logs or returns sensitive tokens.
+   */
+  public async getAuthenticationStatus(): Promise<{
+    authenticated: boolean;
+    limit: number | null;
+    remaining: number | null;
+    reset: string | null;
+  }> {
+    const hasToken = Boolean(process.env.GITHUB_TOKEN?.trim());
+    try {
+      const response = await this.octokit.rest.rateLimit.get();
+      this.updateRateLimitState('/rate_limit', response.status, response.headers);
+
+      const core = response.data.resources?.core || response.data.rate;
+      const limit = core ? core.limit : this.rateLimitLimit;
+      const remaining = core ? core.remaining : this.rateLimitRemaining;
+      const resetIso = core ? new Date(core.reset * 1000).toISOString() : (this.rateLimitReset ? new Date(this.rateLimitReset).toISOString() : null);
+
+      return {
+        authenticated: hasToken && (limit ? limit > 60 : false),
+        limit,
+        remaining,
+        reset: resetIso
+      };
+    } catch (error: any) {
+      const headers = error.response?.headers || {};
+      this.updateRateLimitState('/rate_limit', error.status || 500, headers);
+
+      return {
+        authenticated: hasToken,
+        limit: this.rateLimitLimit,
+        remaining: this.rateLimitRemaining,
+        reset: this.rateLimitReset ? new Date(this.rateLimitReset).toISOString() : null
+      };
+    }
+  }
+
+  /**
+   * Handles and maps Octokit API errors to structured GitHubServiceError after updating rate limit state.
+   */
+  private handleApiError(error: any, path: string, defaultMessage: string, defaultCode: string): GitHubServiceError {
+    const status = error.status || error.statusCode || 500;
+    const headers = error.response?.headers || {};
+
+    this.updateRateLimitState(path, status, headers);
+
+    if (status === 404) {
+      return new GitHubServiceError(
+        'The GitHub repository could not be found.',
+        404,
+        'REPOSITORY_NOT_FOUND'
+      );
+    }
+
+    if (status === 401) {
+      return new GitHubServiceError(
+        'GitHub API authentication failed or token is invalid.',
+        500,
+        'GITHUB_CONFIG_ERROR'
+      );
+    }
+
+    if (
+      status === 403 ||
+      status === 429 ||
+      (error.message && (error.message.toLowerCase().includes('rate limit') || error.message.toLowerCase().includes('quota')))
+    ) {
+      return new GitHubServiceError(
+        'GitHub API rate limit reached. Please try again later.',
+        429,
+        'GITHUB_RATE_LIMITED'
+      );
+    }
+
+    return new GitHubServiceError(
+      defaultMessage,
+      status >= 400 && status < 600 ? status : 502,
+      defaultCode
+    );
   }
 
   /**
@@ -43,12 +233,16 @@ class GitHubService {
    * @param repo Repository name
    */
   public async fetchRepositoryMetadata(owner: string, repo: string): Promise<RepositoryMetadata> {
+    this.checkRateLimitPreflight();
+    const reqPath = `GET /repos/${owner}/${repo}`;
+
     try {
       const response = await this.octokit.rest.repos.get({
         owner,
         repo
       });
 
+      this.updateRateLimitState(reqPath, response.status, response.headers);
       const data = response.data;
 
       // Extract license identifier safely
@@ -88,35 +282,10 @@ class GitHubService {
 
       return metadata;
     } catch (error: any) {
-      const status = error.status || error.statusCode;
-
-      if (status === 404) {
-        throw new GitHubServiceError(
-          'The GitHub repository could not be found.',
-          404,
-          'REPOSITORY_NOT_FOUND'
-        );
-      }
-
-      if (status === 401) {
-        throw new GitHubServiceError(
-          'GitHub API authentication failed or token is invalid.',
-          500,
-          'GITHUB_CONFIG_ERROR'
-        );
-      }
-
-      if (status === 403 || status === 429 || (error.message && (error.message.toLowerCase().includes('rate limit') || error.message.toLowerCase().includes('quota')))) {
-        throw new GitHubServiceError(
-          'GitHub API rate limit reached. Please try again later.',
-          429,
-          'GITHUB_RATE_LIMITED'
-        );
-      }
-
-      throw new GitHubServiceError(
+      throw this.handleApiError(
+        error,
+        reqPath,
         'Unable to retrieve repository information from GitHub.',
-        502,
         'GITHUB_API_ERROR'
       );
     }
@@ -135,6 +304,9 @@ class GitHubService {
     repo: string,
     defaultBranch: string
   ): Promise<RepositoryStructure> {
+    this.checkRateLimitPreflight();
+    const reqPath = `GET /repos/${owner}/${repo}/git/trees/${defaultBranch}`;
+
     try {
       const response = await this.octokit.rest.git.getTree({
         owner,
@@ -142,6 +314,8 @@ class GitHubService {
         tree_sha: defaultBranch,
         recursive: '1'
       });
+
+      this.updateRateLimitState(reqPath, response.status, response.headers);
 
       const rawTree = Array.isArray(response.data.tree) ? response.data.tree : [];
       const isTruncated = Boolean(response.data.truncated);
@@ -198,35 +372,10 @@ class GitHubService {
         importantFiles
       };
     } catch (error: any) {
-      const status = error.status || error.statusCode;
-
-      if (status === 404) {
-        throw new GitHubServiceError(
-          'The repository tree could not be found.',
-          404,
-          'REPOSITORY_NOT_FOUND'
-        );
-      }
-
-      if (status === 401) {
-        throw new GitHubServiceError(
-          'GitHub API authentication failed or token is invalid.',
-          500,
-          'GITHUB_CONFIG_ERROR'
-        );
-      }
-
-      if (status === 403 || status === 429 || (error.message && (error.message.toLowerCase().includes('rate limit') || error.message.toLowerCase().includes('quota')))) {
-        throw new GitHubServiceError(
-          'GitHub API rate limit reached. Please try again later.',
-          429,
-          'GITHUB_RATE_LIMITED'
-        );
-      }
-
-      throw new GitHubServiceError(
+      throw this.handleApiError(
+        error,
+        reqPath,
         'Unable to retrieve repository structure from GitHub.',
-        502,
         'GITHUB_API_ERROR'
       );
     }
@@ -267,6 +416,9 @@ class GitHubService {
 
     // Strictly sequential for...of loop — only ONE active GitHub API request at a time
     for (const filePath of prioritizedPaths) {
+      // Check preflight rate limit before each file request
+      this.checkRateLimitPreflight();
+
       // 1. Check cumulative total content byte budget
       if (totalContentBytes >= MAX_TOTAL_CONTENT_BYTES) {
         contentLimited = true;
@@ -296,6 +448,8 @@ class GitHubService {
         continue;
       }
 
+      const reqPath = `GET /repos/${owner}/${repo}/contents/${filePath}`;
+
       try {
         const response = await this.octokit.rest.repos.getContent({
           owner,
@@ -304,6 +458,7 @@ class GitHubService {
           ref: defaultBranch
         });
 
+        this.updateRateLimitState(reqPath, response.status, response.headers);
         const data = response.data;
 
         // If GitHub returns an array (directory) or missing file object
@@ -392,16 +547,22 @@ class GitHubService {
       } catch (error: any) {
         const status = error.status || error.statusCode;
 
-        // Rate limit / Quota check during file content request
-        if (status === 403 || status === 429 || (error.message && (error.message.toLowerCase().includes('rate limit') || error.message.toLowerCase().includes('quota')))) {
-          throw new GitHubServiceError(
+        // Rate limit / Quota check during file content request — rethrow to trigger 429
+        if (
+          status === 403 ||
+          status === 429 ||
+          (error.message && (error.message.toLowerCase().includes('rate limit') || error.message.toLowerCase().includes('quota')))
+        ) {
+          throw this.handleApiError(
+            error,
+            reqPath,
             'GitHub API rate limit reached. Please try again later.',
-            429,
             'GITHUB_RATE_LIMITED'
           );
         }
 
-        // Individual file fetch failure (e.g. 404)
+        // Individual file fetch failure (e.g. 404) — record skipped file without aborting analysis
+        this.updateRateLimitState(reqPath, status || 500, error.response?.headers || {});
         fileEvidences.push({
           path: filePath,
           size: 0,
@@ -505,3 +666,4 @@ class GitHubService {
 }
 
 export const githubService = new GitHubService();
+

@@ -136,6 +136,94 @@ export interface TechnologyAnalysisResult {
 }
 
 /**
+ * Represents evidence for a potential entry-point candidate file.
+ */
+export interface EntryPointEvidence {
+  path: string;
+  reason: string;
+  source?: string;
+}
+
+/**
+ * Represents evidence for a configuration file present in the repository.
+ */
+export interface ConfigFileEvidence {
+  path: string;
+  type: string;
+}
+
+/**
+ * Represents evidence for a dependency manifest file present in the repository.
+ */
+export interface ManifestEvidence {
+  path: string;
+  type: string;
+}
+
+/**
+ * Represents evidence for a documentation file present in the repository.
+ */
+export interface DocEvidence {
+  path: string;
+  type: string;
+}
+
+/**
+ * Summary metrics exposing repository and evidence completeness or truncation status.
+ */
+export interface EvidenceCompleteness {
+  responseLimited: boolean;
+  contentLimited: boolean;
+  treeTruncated: boolean;
+  fetchedFilesCount: number;
+  skippedFilesCount: number;
+  truncatedFilesCount: number;
+  totalContentBytes: number;
+}
+
+/**
+ * Bounded summary metadata of repository information for downstream analysis.
+ */
+export interface EvidenceRepositorySummary {
+  name: string;
+  fullName: string;
+  description: string | null;
+  defaultBranch: string;
+  primaryLanguage: string | null;
+  license: string | null;
+  topics: string[];
+  url: string;
+}
+
+/**
+ * Bounded summary metadata of structure information for downstream analysis.
+ */
+export interface EvidenceStructureSummary {
+  totalFiles: number;
+  totalDirectories: number;
+  importantFiles: string[];
+  returnedFiles: number;
+  returnedDirectories: number;
+  truncated: boolean;
+  responseLimited: boolean;
+}
+
+/**
+ * Structured evidence package aggregating all deterministic evidence for downstream analysis.
+ */
+export interface RepositoryEvidencePackage {
+  repository: EvidenceRepositorySummary;
+  structure: EvidenceStructureSummary;
+  technologies: TechnologyAnalysisResult;
+  fileContents: FileContentEvidence[];
+  entryPoints: EntryPointEvidence[];
+  configFiles: ConfigFileEvidence[];
+  manifestFiles: ManifestEvidence[];
+  documentationFiles: DocEvidence[];
+  completeness: EvidenceCompleteness;
+}
+
+/**
  * Successful response payload for POST /api/analyze.
  */
 export interface AnalyzeSuccessResponse {
@@ -145,6 +233,7 @@ export interface AnalyzeSuccessResponse {
     structure: RepositoryStructure;
     fileContents: RepositoryFileContents;
     technologies: TechnologyAnalysisResult;
+    evidence: RepositoryEvidencePackage;
   };
 }
 
