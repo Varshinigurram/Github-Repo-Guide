@@ -391,6 +391,42 @@ export interface RepositoryArchitectureResult {
 }
 
 /**
+ * Supported HTTP methods for API endpoint detection.
+ */
+export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS' | 'HEAD';
+
+/**
+ * Individual API endpoint route detection.
+ */
+export interface ApiEndpoint {
+  method: HttpMethod;
+  path: string;
+  framework?: string;
+  evidence: string;
+  confidence: 'high' | 'medium' | 'low';
+}
+
+/**
+ * API Specification / Schema file detection.
+ */
+export interface ApiSpecification {
+  path: string;
+  type: 'OpenAPI' | 'Swagger' | 'GraphQL' | 'gRPC';
+  confidence: 'high' | 'medium' | 'low';
+}
+
+/**
+ * Deterministic API / Endpoint detection payload produced by Step 10.
+ */
+export interface RepositoryApiResult {
+  frameworks: string[];
+  endpoints: ApiEndpoint[];
+  specifications: ApiSpecification[];
+  limitations: string[];
+  confidence: 'high' | 'medium' | 'low';
+}
+
+/**
  * Successful response payload for POST /api/analyze.
  */
 export interface AnalyzeSuccessResponse {
@@ -404,6 +440,7 @@ export interface AnalyzeSuccessResponse {
     analysis: RepositoryAIAnalysis;
     health: RepositoryHealthResult;
     architecture: RepositoryArchitectureResult;
+    api: RepositoryApiResult;
   };
 }
 

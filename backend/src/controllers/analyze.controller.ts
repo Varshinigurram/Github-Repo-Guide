@@ -7,6 +7,7 @@ import { evidenceService } from '../services/evidence.service.js';
 import { aiService, AIServiceError } from '../services/ai.service.js';
 import { healthService } from '../services/health.service.js';
 import { architectureService } from '../services/architecture.service.js';
+import { apiService } from '../services/api.service.js';
 
 // Zod validation schema for request payload
 const analyzeBodySchema = z.object({
@@ -111,7 +112,10 @@ export const analyzeRepository = async (req: Request, res: Response): Promise<vo
     // 8. Construct deterministic architecture visualization graph
     const architecture = architectureService.buildArchitecture(evidence, analysis);
 
-    // Return success response containing metadata, structure, fileContents, technologies, evidence, analysis, health, and architecture
+    // 9. Detect deterministic API endpoints and specifications
+    const api = apiService.detectApiEndpoints(evidence);
+
+    // Return success response containing metadata, structure, fileContents, technologies, evidence, analysis, health, architecture, and api
     res.status(200).json({
       success: true,
       data: {
@@ -122,7 +126,8 @@ export const analyzeRepository = async (req: Request, res: Response): Promise<vo
         evidence,
         analysis,
         health,
-        architecture
+        architecture,
+        api
       }
     });
   } catch (error: any) {
