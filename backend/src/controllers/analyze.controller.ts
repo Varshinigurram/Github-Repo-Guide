@@ -6,6 +6,7 @@ import { technologyService } from '../services/technology.service.js';
 import { evidenceService } from '../services/evidence.service.js';
 import { aiService, AIServiceError } from '../services/ai.service.js';
 import { healthService } from '../services/health.service.js';
+import { architectureService } from '../services/architecture.service.js';
 
 // Zod validation schema for request payload
 const analyzeBodySchema = z.object({
@@ -107,7 +108,10 @@ export const analyzeRepository = async (req: Request, res: Response): Promise<vo
     // 7. Calculate 100% local, deterministic repository health score & breakdown
     const health = healthService.calculateRepositoryHealth(evidence);
 
-    // Return success response containing metadata, structure, fileContents, technologies, evidence, analysis, and health
+    // 8. Construct deterministic architecture visualization graph
+    const architecture = architectureService.buildArchitecture(evidence, analysis);
+
+    // Return success response containing metadata, structure, fileContents, technologies, evidence, analysis, health, and architecture
     res.status(200).json({
       success: true,
       data: {
@@ -117,7 +121,8 @@ export const analyzeRepository = async (req: Request, res: Response): Promise<vo
         technologies,
         evidence,
         analysis,
-        health
+        health,
+        architecture
       }
     });
   } catch (error: any) {

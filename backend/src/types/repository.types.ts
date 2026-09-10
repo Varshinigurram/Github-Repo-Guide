@@ -340,6 +340,57 @@ export interface RepositoryHealthResult {
 }
 
 /**
+ * Supported node types for architecture visualization graph.
+ */
+export type ArchitectureNodeType =
+  | 'frontend'
+  | 'backend'
+  | 'api'
+  | 'database'
+  | 'cache'
+  | 'queue'
+  | 'worker'
+  | 'external_service'
+  | 'build'
+  | 'deployment'
+  | 'storage'
+  | 'authentication'
+  | 'unknown';
+
+/**
+ * Individual node in the architecture graph.
+ */
+export interface ArchitectureNode {
+  id: string;
+  label: string;
+  type: ArchitectureNodeType;
+  technologies: string[];
+  evidence: string[];
+  confidence: 'high' | 'medium' | 'low';
+}
+
+/**
+ * Individual directed edge between nodes in the architecture graph.
+ */
+export interface ArchitectureEdge {
+  source: string;
+  target: string;
+  label: string;
+  confidence: 'high' | 'medium' | 'low';
+  evidence: string[];
+}
+
+/**
+ * Deterministic architecture graph visualization payload produced by Step 9.
+ */
+export interface RepositoryArchitectureResult {
+  nodes: ArchitectureNode[];
+  edges: ArchitectureEdge[];
+  limitations: string[];
+  confidence: 'high' | 'medium' | 'low';
+}
+
+/**
  * Successful response payload for POST /api/analyze.
  */
 export interface AnalyzeSuccessResponse {
@@ -352,6 +403,7 @@ export interface AnalyzeSuccessResponse {
     evidence: RepositoryEvidencePackage;
     analysis: RepositoryAIAnalysis;
     health: RepositoryHealthResult;
+    architecture: RepositoryArchitectureResult;
   };
 }
 

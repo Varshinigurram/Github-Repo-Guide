@@ -422,14 +422,7 @@ CRITICAL RULES:
       const payload: any = await response.json();
       const rawContent = payload.choices?.[0]?.message?.content;
 
-      let contentStr = '';
-      if (typeof rawContent === 'string') {
-        contentStr = rawContent.trim();
-      } else if (rawContent && typeof rawContent === 'object') {
-        contentStr = JSON.stringify(rawContent);
-      }
-
-      if (!contentStr) {
+      if (!rawContent) {
         throw new AIServiceError(
           'OpenRouter returned an empty or missing content payload.',
           'INVALID_AI_RESPONSE',
@@ -437,19 +430,40 @@ CRITICAL RULES:
         );
       }
 
-      // Safely strip surrounding markdown code fences (e.g. ```json ... ```) if present
-      const cleanedJsonText = contentStr
-        .replace(/^```(?:json)?\s*/i, '')
-        .replace(/\s*```$/, '')
-        .trim();
-
       let parsedData: unknown;
-      try {
-        parsedData = JSON.parse(cleanedJsonText);
-      } catch (jsonErr: any) {
-        const snippet = cleanedJsonText.length > 120 ? `${cleanedJsonText.substring(0, 120)}...` : cleanedJsonText;
+
+      if (typeof rawContent === 'object' && rawContent !== null) {
+        // OpenRouter returned pre-parsed JSON object directly
+        parsedData = rawContent;
+      } else if (typeof rawContent === 'string') {
+        const contentStr = rawContent.trim();
+        if (!contentStr) {
+          throw new AIServiceError(
+            'OpenRouter returned an empty content string.',
+            'INVALID_AI_RESPONSE',
+            502
+          );
+        }
+
+        // Safely strip surrounding markdown code fences (e.g. ```json ... ```) if present
+        const cleanedJsonText = contentStr
+          .replace(/^```(?:json)?\s*/i, '')
+          .replace(/\s*```$/, '')
+          .trim();
+
+        try {
+          parsedData = JSON.parse(cleanedJsonText);
+        } catch (jsonErr: any) {
+          const snippet = cleanedJsonText.length > 120 ? `${cleanedJsonText.substring(0, 120)}...` : cleanedJsonText;
+          throw new AIServiceError(
+            `Failed to parse OpenRouter response as JSON (length: ${cleanedJsonText.length}, snippet: "${snippet.replace(/"/g, "'")}"): ${jsonErr.message}`,
+            'INVALID_AI_RESPONSE',
+            502
+          );
+        }
+      } else {
         throw new AIServiceError(
-          `Failed to parse OpenRouter response as JSON (length: ${cleanedJsonText.length}, snippet: "${snippet.replace(/"/g, "'")}"): ${jsonErr.message}`,
+          'OpenRouter returned an invalid content type payload.',
           'INVALID_AI_RESPONSE',
           502
         );
