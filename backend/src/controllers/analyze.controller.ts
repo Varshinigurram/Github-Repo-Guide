@@ -1,13 +1,9 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
 import { parseGitHubUrl } from '../utils/github-url.js';
-import { githubService, GitHubServiceError } from '../services/github.service.js';
-import { technologyService } from '../services/technology.service.js';
-import { evidenceService } from '../services/evidence.service.js';
+import { GitHubServiceError } from '../services/github.service.js';
 import { aiService, AIServiceError } from '../services/ai.service.js';
-import { healthService } from '../services/health.service.js';
-import { architectureService } from '../services/architecture.service.js';
-import { apiService } from '../services/api.service.js';
+import { repositoryAnalysisService } from '../services/repository-analysis.service.js';
 
 // Zod validation schema for request payload
 const analyzeBodySchema = z.object({
@@ -16,9 +12,8 @@ const analyzeBodySchema = z.object({
 
 /**
  * Controller for POST /api/analyze
- * Validates GitHub URL, fetches metadata, tree structure, and important file contents from GitHub API,
- * analyzes technology/dependency evidence, aggregates structured repository evidence, generates
- * structured AI repository interpretation, and calculates deterministic repository health score.
+ * Validates GitHub URL, reuses/caches deterministic repository analysis,
+ * generates structured AI interpretation, and returns all 9 analysis data fields.
  */
 export const analyzeRepository = async (req: Request, res: Response): Promise<void> => {
   // Check for missing or empty request body object
@@ -67,67 +62,25 @@ export const analyzeRepository = async (req: Request, res: Response): Promise<vo
   }
 
   try {
-    // 1. Fetch real repository metadata from GitHub API
-    const repositoryMetadata = await githubService.fetchRepositoryMetadata(
-      parsedRepo.owner,
-      parsedRepo.repository
-    );
+    // 1. Get or fetch 100% deterministic repository analysis (cached / deduplicated in-flight)
+    const deterministicAnalysis = await repositoryAnalysisService.getOrFetchRepositoryAnalysis(url);
 
-    // 2. Fetch repository file and folder structure using default branch
-    const repositoryStructure = await githubService.fetchRepositoryTree(
-      parsedRepo.owner,
-      parsedRepo.repository,
-      repositoryMetadata.defaultBranch
-    );
-
-    // 3. Fetch text contents for selected important files using default branch
-    const repositoryFileContents = await githubService.fetchImportantFileContents(
-      parsedRepo.owner,
-      parsedRepo.repository,
-      repositoryMetadata.defaultBranch,
-      repositoryStructure.importantFiles
-    );
-
-    // 4. Analyze repository evidence to detect technologies and dependencies
-    const technologies = technologyService.analyzeRepositoryTechnologies(
-      repositoryMetadata,
-      repositoryStructure,
-      repositoryFileContents
-    );
-
-    // 5. Aggregate evidence into structured, traceable evidence package
-    const evidence = evidenceService.aggregateEvidence(
-      repositoryMetadata,
-      repositoryStructure,
-      repositoryFileContents,
-      technologies
-    );
-
-    // 6. Generate structured AI repository interpretation based strictly on evidence package
-    const analysis = await aiService.analyzeRepositoryEvidence(evidence);
-
-    // 7. Calculate 100% local, deterministic repository health score & breakdown
-    const health = healthService.calculateRepositoryHealth(evidence);
-
-    // 8. Construct deterministic architecture visualization graph
-    const architecture = architectureService.buildArchitecture(evidence, analysis);
-
-    // 9. Detect deterministic API endpoints and specifications
-    const api = apiService.detectApiEndpoints(evidence);
+    // 2. Generate structured AI repository interpretation based strictly on evidence package
+    const analysis = await aiService.analyzeRepositoryEvidence(deterministicAnalysis.evidence);
 
     // Return success response containing metadata, structure, fileContents, technologies, evidence, analysis, health, architecture, and api
     res.status(200).json({
       success: true,
       data: {
-        repository: repositoryMetadata,
-        structure: repositoryStructure,
-        fileContents: repositoryFileContents,
-        technologies,
-        evidence,
+        repository: deterministicAnalysis.repository,
+        structure: deterministicAnalysis.structure,
+        fileContents: deterministicAnalysis.fileContents,
+        technologies: deterministicAnalysis.technologies,
+        evidence: deterministicAnalysis.evidence,
         analysis,
-        health,
-        architecture,
-        api
+        health: deterministicAnalysis.health,
+        architecture: deterministicAnalysis.architecture,
+        api: deterministicAnalysis.api
       }
     });
   } catch (error: any) {
@@ -162,4 +115,3 @@ export const analyzeRepository = async (req: Request, res: Response): Promise<vo
     });
   }
 };
-

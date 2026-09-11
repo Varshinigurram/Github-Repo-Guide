@@ -11,6 +11,30 @@ export const errorHandler = (
   res: Response,
   _next: NextFunction
 ): void => {
+  // Handle payload too large (413) error from express.json
+  if (err.name === 'PayloadTooLargeError' || (err as any).type === 'entity.too.large' || (err as any).status === 413) {
+    res.status(413).json({
+      success: false,
+      error: {
+        code: 'PAYLOAD_TOO_LARGE',
+        message: 'Request payload exceeds maximum allowed limit of 100KB.'
+      }
+    });
+    return;
+  }
+
+  // Handle invalid JSON body syntax (400)
+  if (err instanceof SyntaxError && 'status' in err && (err as any).status === 400 && 'body' in err) {
+    res.status(400).json({
+      success: false,
+      error: {
+        code: 'INVALID_REQUEST_BODY',
+        message: 'Invalid JSON syntax in request body.'
+      }
+    });
+    return;
+  }
+
   if (err instanceof GitHubServiceError) {
     res.status(err.statusCode).json({
       success: false,

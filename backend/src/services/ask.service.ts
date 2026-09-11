@@ -6,6 +6,7 @@ import { evidenceService } from './evidence.service.js';
 import { apiService } from './api.service.js';
 import { architectureService } from './architecture.service.js';
 import { healthService } from './health.service.js';
+import { repositoryAnalysisService } from './repository-analysis.service.js';
 import {
   RepositoryEvidencePackage,
   RepositoryAskResult,
@@ -257,37 +258,9 @@ GROUNDING & CITATION RULES:
       );
     }
 
-    // 1. Deterministic evidence collection (0 AI calls)
-    const repositoryMetadata = await githubService.fetchRepositoryMetadata(
-      parsedRepo.owner,
-      parsedRepo.repository
-    );
-
-    const repositoryStructure = await githubService.fetchRepositoryTree(
-      parsedRepo.owner,
-      parsedRepo.repository,
-      repositoryMetadata.defaultBranch
-    );
-
-    const repositoryFileContents = await githubService.fetchImportantFileContents(
-      parsedRepo.owner,
-      parsedRepo.repository,
-      repositoryMetadata.defaultBranch,
-      repositoryStructure.importantFiles
-    );
-
-    const technologies = technologyService.analyzeRepositoryTechnologies(
-      repositoryMetadata,
-      repositoryStructure,
-      repositoryFileContents
-    );
-
-    const evidence = evidenceService.aggregateEvidence(
-      repositoryMetadata,
-      repositoryStructure,
-      repositoryFileContents,
-      technologies
-    );
+    // 1. Get or fetch 100% deterministic repository analysis (cached / deduplicated in-flight)
+    const deterministicAnalysis = await repositoryAnalysisService.getOrFetchRepositoryAnalysis(url);
+    const evidence = deterministicAnalysis.evidence;
 
     // 2. Prepare bounded prompt context
     const context = this.prepareAskContext(evidence, trimmedQuestion);
