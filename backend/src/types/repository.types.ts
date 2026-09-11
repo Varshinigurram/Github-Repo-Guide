@@ -455,4 +455,40 @@ export interface ErrorResponse {
   };
 }
 
+/**
+ * Expected request body payload for POST /api/ask.
+ */
+export interface AskRequest {
+  url: string;
+  question: string;
+}
+
+/**
+ * Cited repository evidence item supporting an Ask Repository answer.
+ */
+export interface AskEvidence {
+  path: string;
+  snippet?: string | null;
+  reason: string;
+}
+
+/**
+ * Grounded AI response payload for POST /api/ask.
+ */
+export interface RepositoryAskResult {
+  answer: string;
+  confidence: 'high' | 'medium' | 'low';
+  evidence: AskEvidence[];
+  limitations: string[];
+}
+
+/**
+ * Successful response payload for POST /api/ask.
+ */
+export interface AskSuccessResponse {
+  success: true;
+  data: RepositoryAskResult;
+}
+
+
 
