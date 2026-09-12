@@ -234,12 +234,12 @@ export class AIService {
       source: d.source
     }));
 
-    // Bounded file contents (max 8 KB per file content snippet to fit token limits)
+    // Bounded file contents (max 4 KB per file content snippet to fit token limits)
     const boundedFileContents = evidence.fileContents.map((f) => ({
       path: f.path,
       size: f.size,
-      contentSnippet: f.content ? f.content.substring(0, 8000) : null,
-      truncated: f.truncated || (f.content ? f.content.length > 8000 : false),
+      contentSnippet: f.content ? f.content.substring(0, 4000) : null,
+      truncated: f.truncated || (f.content ? f.content.length > 4000 : false),
       skipReason: f.skipReason
     }));
 
@@ -382,7 +382,7 @@ CRITICAL RULES:
           },
           stream: false,
           temperature: 0.1,
-          max_tokens: 4096
+          max_tokens: 8192
         }),
         signal: controller.signal
       });

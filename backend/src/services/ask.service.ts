@@ -366,9 +366,49 @@ GROUNDING & CITATION RULES:
         );
       }
 
-      const rawContent = choice?.message?.content;
+      let rawContent = choice?.message?.content;
+
+      // If OpenRouter free provider returns empty/null content on first attempt, retry once after 500ms
       if (!rawContent) {
-        console.log('OPENROUTER RAW RESPONSE PAYLOAD:', JSON.stringify(payload, null, 2));
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        const retryResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+            'HTTP-Referer': 'https://github.com/Varshinigurram/Github-Repo-Guide',
+            'X-Title': 'GitHub Repo Guide'
+          },
+          body: JSON.stringify({
+            model: modelName,
+            messages: [
+              { role: 'system', content: systemInstructions },
+              { role: 'user', content: promptText }
+            ],
+            response_format: {
+              type: 'json_schema',
+              json_schema: {
+                name: 'repository_ask_result',
+                strict: true,
+                schema: repositoryAskResultJsonSchema
+              }
+            },
+            provider: { require_parameters: true },
+            reasoning: { effort: 'low', exclude: true },
+            stream: false,
+            temperature: 0.1,
+            max_tokens: 4096
+          })
+        });
+
+        if (retryResponse.ok) {
+          const retryPayload: any = await retryResponse.json();
+          const retryChoice = retryPayload.choices?.[0];
+          rawContent = retryChoice?.message?.content;
+        }
+      }
+
+      if (!rawContent) {
         throw new AskServiceError(
           'OpenRouter returned an empty or missing content payload.',
           'INVALID_AI_RESPONSE',

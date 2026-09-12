@@ -21,8 +21,8 @@ export class RepositoryAnalysisService {
     if (!parsedRepo) {
       throw new GitHubServiceError(
         'Please provide a valid GitHub repository URL (e.g. https://github.com/facebook/react).',
-        'INVALID_GITHUB_URL',
-        400
+        400,
+        'INVALID_GITHUB_URL'
       );
     }
 

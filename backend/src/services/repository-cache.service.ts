@@ -4,6 +4,7 @@ import {
   RepositoryFileContents,
   TechnologyAnalysisResult,
   RepositoryEvidencePackage,
+  RepositoryAIAnalysis,
   RepositoryHealthResult,
   RepositoryArchitectureResult,
   RepositoryApiResult
@@ -18,6 +19,7 @@ export interface DeterministicRepositoryAnalysis {
   fileContents: RepositoryFileContents;
   technologies: TechnologyAnalysisResult;
   evidence: RepositoryEvidencePackage;
+  analysis?: RepositoryAIAnalysis;
   health: RepositoryHealthResult;
   architecture: RepositoryArchitectureResult;
   api: RepositoryApiResult;
@@ -28,6 +30,7 @@ interface CacheEntry {
   data: DeterministicRepositoryAnalysis;
   timestamp: number;
   lastAccessed: number;
+  accessOrder: number;
 }
 
 export class RepositoryCacheService {
@@ -35,6 +38,7 @@ export class RepositoryCacheService {
   private readonly ttlMs: number = 5 * 60 * 1000; // 5 minutes TTL
   private cache: Map<string, CacheEntry> = new Map();
   private inFlightMap: Map<string, Promise<DeterministicRepositoryAnalysis>> = new Map();
+  private accessCounter: number = 0;
 
   constructor(maxEntries: number = 10, ttlMs: number = 5 * 60 * 1000) {
     this.maxEntries = maxEntries;
@@ -71,6 +75,7 @@ export class RepositoryCacheService {
     }
 
     entry.lastAccessed = now;
+    entry.accessOrder = ++this.accessCounter;
     if (process.env.NODE_ENV !== 'test') {
       console.log(`[cache] HIT ${key}`);
     }
@@ -97,11 +102,11 @@ export class RepositoryCacheService {
     // Perform LRU eviction if cache size exceeds maxEntries
     if (this.cache.size >= this.maxEntries && !this.cache.has(key)) {
       let oldestKey: string | null = null;
-      let oldestAccess = Infinity;
+      let oldestAccessOrder = Infinity;
 
       for (const [k, entry] of this.cache.entries()) {
-        if (entry.lastAccessed < oldestAccess) {
-          oldestAccess = entry.lastAccessed;
+        if (entry.accessOrder < oldestAccessOrder) {
+          oldestAccessOrder = entry.accessOrder;
           oldestKey = k;
         }
       }
@@ -118,7 +123,8 @@ export class RepositoryCacheService {
       key,
       data,
       timestamp: now,
-      lastAccessed: now
+      lastAccessed: now,
+      accessOrder: ++this.accessCounter
     });
 
     if (process.env.NODE_ENV !== 'test') {

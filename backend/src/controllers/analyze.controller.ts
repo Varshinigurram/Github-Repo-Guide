@@ -65,8 +65,10 @@ export const analyzeRepository = async (req: Request, res: Response): Promise<vo
     // 1. Get or fetch 100% deterministic repository analysis (cached / deduplicated in-flight)
     const deterministicAnalysis = await repositoryAnalysisService.getOrFetchRepositoryAnalysis(url);
 
-    // 2. Generate structured AI repository interpretation based strictly on evidence package
-    const analysis = await aiService.analyzeRepositoryEvidence(deterministicAnalysis.evidence);
+    // 2. Generate structured AI repository interpretation once if not already present on cached analysis
+    if (!deterministicAnalysis.analysis) {
+      deterministicAnalysis.analysis = await aiService.analyzeRepositoryEvidence(deterministicAnalysis.evidence);
+    }
 
     // Return success response containing metadata, structure, fileContents, technologies, evidence, analysis, health, architecture, and api
     res.status(200).json({
@@ -77,7 +79,7 @@ export const analyzeRepository = async (req: Request, res: Response): Promise<vo
         fileContents: deterministicAnalysis.fileContents,
         technologies: deterministicAnalysis.technologies,
         evidence: deterministicAnalysis.evidence,
-        analysis,
+        analysis: deterministicAnalysis.analysis,
         health: deterministicAnalysis.health,
         architecture: deterministicAnalysis.architecture,
         api: deterministicAnalysis.api
