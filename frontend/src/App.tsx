@@ -1,105 +1,307 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { apiClient } from '@/api/client'
-import { ApiClientError, type HealthStatusResponse } from '@/types/api.types'
-import { Activity, Terminal, ShieldCheck, Cpu } from 'lucide-react'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { Separator } from '@/components/ui/separator'
+import { Skeleton } from '@/components/ui/skeleton'
+import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
+import {
+  Terminal,
+  Code2,
+  FolderGit2,
+  Cpu,
+  CheckCircle2,
+  AlertTriangle,
+  FileCode2,
+  Search,
+  ExternalLink,
+  Copy,
+  Info
+} from 'lucide-react'
 
 export function App() {
-  const [healthStatus, setHealthStatus] = useState<HealthStatusResponse | null>(null)
-  const [healthError, setHealthError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [copied, setCopied] = useState(false)
 
-  const checkHealth = async () => {
-    setLoading(true)
-    setHealthError(null)
-    try {
-      const res = await apiClient.getHealth()
-      setHealthStatus(res)
-    } catch (err: unknown) {
-      if (err instanceof ApiClientError) {
-        setHealthError(`[${err.code}] ${err.message}`)
-      } else if (err instanceof Error) {
-        setHealthError(err.message)
-      } else {
-        setHealthError('Failed to connect to backend server.')
-      }
-    } finally {
-      setLoading(false)
-    }
+  const handleCopy = () => {
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center p-6 font-sans">
-      <div className="max-w-xl w-full bg-slate-900 border border-slate-800 rounded-xl p-8 shadow-2xl space-y-6">
-        {/* Header Branding */}
-        <div className="flex items-center space-x-3 border-b border-slate-800 pb-4">
-          <div className="p-2.5 bg-slate-800 rounded-lg text-slate-200 border border-slate-700">
-            <Terminal className="w-6 h-6 text-emerald-400" />
-          </div>
-          <div>
-            <h1 className="text-xl font-semibold tracking-tight text-white">GitHub Repo Guide</h1>
-            <p className="text-xs text-slate-400">Frontend Foundation initialized (Step 13B)</p>
-          </div>
-        </div>
+    <TooltipProvider>
+      <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-emerald-950 selection:text-emerald-300">
+        {/* Top Developer Navigation Header */}
+        <header className="border-b border-slate-800 bg-slate-950/80 sticky top-0 z-40 backdrop-blur-md">
+          <div className="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="p-1.5 bg-slate-900 border border-slate-800 rounded">
+                <Terminal className="w-5 h-5 text-emerald-400" />
+              </div>
+              <span className="font-semibold text-sm tracking-tight text-white font-mono">
+                GitHub Repo Guide <span className="text-slate-500 text-xs font-normal">/ Design System</span>
+              </span>
+            </div>
 
-        {/* Technical Tech Stack Verification Checklist */}
-        <div className="space-y-3">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-            Foundation Verification Checklist
-          </h2>
-          <div className="grid grid-cols-2 gap-2 text-xs font-mono">
-            <div className="flex items-center space-x-2 bg-slate-950 p-2.5 rounded border border-slate-800/80">
-              <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>React 19 + TypeScript</span>
-            </div>
-            <div className="flex items-center space-x-2 bg-slate-950 p-2.5 rounded border border-slate-800/80">
-              <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>Tailwind CSS v4</span>
-            </div>
-            <div className="flex items-center space-x-2 bg-slate-950 p-2.5 rounded border border-slate-800/80">
-              <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>shadcn/ui Button</span>
-            </div>
-            <div className="flex items-center space-x-2 bg-slate-950 p-2.5 rounded border border-slate-800/80">
-              <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>Lucide Icons</span>
+            <div className="flex items-center space-x-3">
+              <Badge variant="outline" className="text-[11px]">
+                Step 13C Visual Language
+              </Badge>
+              <Badge variant="default" className="text-[11px]">
+                Dark First Engine
+              </Badge>
             </div>
           </div>
-        </div>
+        </header>
 
-        {/* Backend API Health Verification Section */}
-        <div className="bg-slate-950 rounded-lg p-4 border border-slate-800 space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2 text-xs text-slate-300 font-mono">
-              <Cpu className="w-4 h-4 text-slate-400" />
-              <span>Backend Target: {import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}</span>
+        {/* Main Content Workspace Container */}
+        <main className="max-w-7xl mx-auto px-6 py-8 space-y-10">
+          {/* Section 1: Intro / Branding Banner */}
+          <div className="border-b border-slate-800/80 pb-6 space-y-2">
+            <div className="flex items-center space-x-2 text-xs font-mono text-emerald-400">
+              <Cpu className="w-4 h-4" />
+              <span>REPOSITORY INTELLIGENCE WORKSPACE</span>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={checkHealth}
-              disabled={loading}
-              className="text-xs border-slate-700 hover:bg-slate-800 text-slate-200"
-            >
-              <Activity className="w-3.5 h-3.5 mr-1.5 text-emerald-400" />
-              {loading ? 'Checking...' : 'Check API Health'}
-            </Button>
+            <h1 className="text-2xl font-bold tracking-tight text-white">
+              Visual Language & Technical Design Tokens
+            </h1>
+            <p className="text-sm text-slate-400 max-w-3xl leading-relaxed">
+              Established design tokens, crisp monospace code presentation, restrained status indicators, 
+              and foundational shadcn UI components built specifically for high-density developer analysis tooling.
+            </p>
           </div>
 
-          {healthStatus && (
-            <div className="p-3 bg-emerald-950/40 border border-emerald-800/50 rounded text-xs font-mono text-emerald-300">
-              Status: {healthStatus.status} | Service: {healthStatus.service}
+          {/* Section 2: Typography & Code Presentation */}
+          <section className="space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+              <h2 className="text-xs font-mono font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                <FileCode2 className="w-4 h-4 text-emerald-400" />
+                1. Typography & Monospace Path Formatting
+              </h2>
+              <span className="text-xs text-slate-500 font-mono">UI Sans + Code Monospace</span>
             </div>
-          )}
 
-          {healthError && (
-            <div className="p-3 bg-rose-950/40 border border-rose-800/50 rounded text-xs font-mono text-rose-300">
-              {healthError}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>San-Serif Text Hierarchy</CardTitle>
+                  <CardDescription>Clean sans-serif for UI labels and documentation</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div>
+                    <span className="text-xs text-slate-500 font-mono">Page Title</span>
+                    <h3 className="text-lg font-bold text-white">Repository Overview</h3>
+                  </div>
+                  <div>
+                    <span className="text-xs text-slate-500 font-mono">Section Subheading</span>
+                    <h4 className="text-sm font-semibold text-slate-200">Architecture Components & Routing</h4>
+                  </div>
+                  <div>
+                    <span className="text-xs text-slate-500 font-mono">Body Paragraph</span>
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      Calculates a transparent 0–100 repository health score and constructs an evidence-grounded architecture graph derived from repository files.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Monospace Path & Code Snippets</CardTitle>
+                  <CardDescription>Formatted file paths, entry points, and bash commands</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div>
+                    <span className="text-xs text-slate-500 font-mono block mb-1">File Path Tag</span>
+                    <code className="px-2 py-1 bg-slate-950 border border-slate-800 rounded font-mono text-xs text-emerald-400 inline-block">
+                      src/services/repository-analysis.service.ts
+                    </code>
+                  </div>
+
+                  <div>
+                    <span className="text-xs text-slate-500 font-mono block mb-1">Command Line Snippet</span>
+                    <div className="p-3 bg-slate-950 border border-slate-800 rounded font-mono text-xs text-slate-300 flex items-center justify-between">
+                      <span className="text-slate-400">$ npm run build</span>
+                      <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-400 hover:text-slate-100" onClick={handleCopy}>
+                        {copied ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
-          )}
-        </div>
+          </section>
+
+          {/* Section 3: Buttons & Interactive States */}
+          <section className="space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+              <h2 className="text-xs font-mono font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                <Terminal className="w-4 h-4 text-emerald-400" />
+                2. Button System & Interactive States
+              </h2>
+              <span className="text-xs text-slate-500 font-mono">shadcn/ui Button Variants</span>
+            </div>
+
+            <Card>
+              <CardContent className="p-6 space-y-4">
+                <div className="flex flex-wrap items-center gap-3">
+                  <Button variant="default">
+                    <Search className="w-3.5 h-3.5 mr-1.5" /> Primary Action
+                  </Button>
+                  <Button variant="secondary">
+                    <FolderGit2 className="w-3.5 h-3.5 mr-1.5" /> Secondary Action
+                  </Button>
+                  <Button variant="outline">
+                    <Code2 className="w-3.5 h-3.5 mr-1.5" /> Outline Action
+                  </Button>
+                  <Button variant="ghost">Ghost Action</Button>
+                  <Button variant="destructive">
+                    <AlertTriangle className="w-3.5 h-3.5 mr-1.5" /> Destructive
+                  </Button>
+                  <Button variant="outline" size="icon">
+                    <ExternalLink className="w-4 h-4" />
+                  </Button>
+                  <Button variant="default" disabled>
+                    Disabled State
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </section>
+
+          {/* Section 4: Input & Badges */}
+          <section className="space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+              <h2 className="text-xs font-mono font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                <Search className="w-4 h-4 text-emerald-400" />
+                3. Input Controls & Semantic Badges
+              </h2>
+              <span className="text-xs text-slate-500 font-mono">Inputs & HTTP Badges</span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Input States</CardTitle>
+                  <CardDescription>Repository URL entry & validation feedback states</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <label className="text-xs font-mono text-slate-400 block mb-1.5">Standard Input</label>
+                    <Input placeholder="https://github.com/facebook/react" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-mono text-slate-400 block mb-1.5">Invalid URL Input</label>
+                    <Input isInvalid defaultValue="invalid-url" />
+                    <span className="text-[11px] text-rose-400 font-mono mt-1 block">
+                      Please enter a valid public GitHub URL
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Semantic Status & HTTP Badges</CardTitle>
+                  <CardDescription>Compact badges for technologies, HTTP methods, and status</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant="default">TypeScript</Badge>
+                    <Badge variant="secondary">React 19</Badge>
+                    <Badge variant="outline">Tailwind v4</Badge>
+                    <Badge variant="success">Strong (95/100)</Badge>
+                    <Badge variant="warning">Fair (65/100)</Badge>
+                    <Badge variant="destructive">Weak (30/100)</Badge>
+                    <Badge variant="info">Evidence Cited</Badge>
+                  </div>
+                  <Separator className="my-2" />
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant="method" className="border-emerald-800/60 bg-emerald-950/60 text-emerald-300">
+                      GET
+                    </Badge>
+                    <Badge variant="method" className="border-blue-800/60 bg-blue-950/60 text-blue-300">
+                      POST
+                    </Badge>
+                    <Badge variant="method" className="border-amber-800/60 bg-amber-950/60 text-amber-300">
+                      PUT
+                    </Badge>
+                    <Badge variant="method" className="border-rose-800/60 bg-rose-950/60 text-rose-300">
+                      DELETE
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </section>
+
+          {/* Section 5: Information Panels, Tooltips & Skeletons */}
+          <section className="space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+              <h2 className="text-xs font-mono font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                <Info className="w-4 h-4 text-emerald-400" />
+                4. Dense Information Panels & Loading Skeletons
+              </h2>
+              <span className="text-xs text-slate-500 font-mono">Layout & Tooltips</span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                  <div>
+                    <CardTitle>Information Panel</CardTitle>
+                    <CardDescription>Compact 1px bordered surface for repository metadata</CardDescription>
+                  </div>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400">
+                        <Info className="w-4 h-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Evidence-grounded deterministic metadata panel</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </CardHeader>
+                <CardContent className="space-y-3 font-mono text-xs">
+                  <div className="flex justify-between py-1 border-b border-slate-800/60">
+                    <span className="text-slate-400">Primary Framework</span>
+                    <span className="text-slate-100 font-semibold">Express.js</span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-slate-800/60">
+                    <span className="text-slate-400">Evidence Path</span>
+                    <span className="text-emerald-400">backend/package.json</span>
+                  </div>
+                  <div className="flex justify-between py-1">
+                    <span className="text-slate-400">Determinism Level</span>
+                    <span className="text-slate-100 font-semibold">100% In-Memory</span>
+                  </div>
+                </CardContent>
+                <CardFooter>
+                  <span className="text-slate-500">Verified via Step 13C design system foundation</span>
+                </CardFooter>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Loading Skeleton States</CardTitle>
+                  <CardDescription>Bounded skeleton placeholders for asynchronous operations</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-5/6" />
+                  <div className="flex gap-2 pt-2">
+                    <Skeleton className="h-6 w-20" />
+                    <Skeleton className="h-6 w-24" />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </section>
+        </main>
       </div>
-    </div>
+    </TooltipProvider>
   )
 }
 
