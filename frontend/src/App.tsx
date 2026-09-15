@@ -5,6 +5,7 @@ import { RepositoryAnalyzer } from '@/components/repository/RepositoryAnalyzer'
 import { AnalysisLoading } from '@/components/repository/AnalysisLoading'
 import { RepositoryHeader } from '@/components/repository/RepositoryHeader'
 import { RepositoryOverview } from '@/components/repository/RepositoryOverview'
+import { RepositoryArchitecture } from '@/components/repository/RepositoryArchitecture'
 import { RepositoryHealth } from '@/components/repository/RepositoryHealth'
 import { EvidenceMetrics } from '@/components/repository/EvidenceMetrics'
 import { TechnologyStack } from '@/components/repository/TechnologyStack'
@@ -109,7 +110,7 @@ export function App() {
             </div>
           )}
 
-          {/* Success View: Structured Repository Intelligence & Health */}
+          {/* Success View: Structured Repository Intelligence Overview */}
           {state === 'success' && analysisData && (
             <div className="space-y-8 animate-in fade-in duration-300">
               {/* 1. Repository Header Banner */}
@@ -123,10 +124,13 @@ export function App() {
               {/* 2. Repository Overview */}
               <RepositoryOverview analysis={analysisData.analysis} />
 
-              {/* 3. Repository Health Intelligence */}
+              {/* 3. Repository Architecture Map */}
+              <RepositoryArchitecture architecture={analysisData.architecture} />
+
+              {/* 4. Repository Health Intelligence */}
               <RepositoryHealth health={analysisData.health} />
 
-              {/* 4. Evidence Scope + Technology Stack */}
+              {/* 5. Evidence Scope + Technology Stack */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2">
                   <TechnologyStack technologies={analysisData.technologies} />
@@ -140,7 +144,7 @@ export function App() {
                 </div>
               </div>
 
-              {/* 5. Repository Evidence Lists */}
+              {/* 6. Repository Evidence Lists */}
               <EvidenceLists
                 entryPoints={analysisData.evidence?.entryPoints}
                 configFiles={analysisData.evidence?.configFiles}
@@ -149,7 +153,7 @@ export function App() {
                 importantFiles={analysisData.structure?.importantFiles}
               />
 
-              {/* 6. Setup / Run Information */}
+              {/* 7. Setup / Run Information */}
               <SetupGuide setup={analysisData.analysis?.setup} />
             </div>
           )}
