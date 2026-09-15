@@ -6,6 +6,7 @@ import { AnalysisLoading } from '@/components/repository/AnalysisLoading'
 import { RepositoryHeader } from '@/components/repository/RepositoryHeader'
 import { RepositoryOverview } from '@/components/repository/RepositoryOverview'
 import { RepositoryArchitecture } from '@/components/repository/RepositoryArchitecture'
+import { ApiExplorer } from '@/components/repository/ApiExplorer'
 import { RepositoryHealth } from '@/components/repository/RepositoryHealth'
 import { EvidenceMetrics } from '@/components/repository/EvidenceMetrics'
 import { TechnologyStack } from '@/components/repository/TechnologyStack'
@@ -127,10 +128,13 @@ export function App() {
               {/* 3. Repository Architecture Map */}
               <RepositoryArchitecture architecture={analysisData.architecture} />
 
-              {/* 4. Repository Health Intelligence */}
+              {/* 4. API Explorer */}
+              <ApiExplorer api={analysisData.api} />
+
+              {/* 5. Repository Health Intelligence */}
               <RepositoryHealth health={analysisData.health} />
 
-              {/* 5. Evidence Scope + Technology Stack */}
+              {/* 6. Evidence Scope + Technology Stack */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2">
                   <TechnologyStack technologies={analysisData.technologies} />
@@ -144,7 +148,7 @@ export function App() {
                 </div>
               </div>
 
-              {/* 6. Repository Evidence Lists */}
+              {/* 7. Repository Evidence Lists */}
               <EvidenceLists
                 entryPoints={analysisData.evidence?.entryPoints}
                 configFiles={analysisData.evidence?.configFiles}
@@ -153,7 +157,7 @@ export function App() {
                 importantFiles={analysisData.structure?.importantFiles}
               />
 
-              {/* 7. Setup / Run Information */}
+              {/* 8. Setup / Run Information */}
               <SetupGuide setup={analysisData.analysis?.setup} />
             </div>
           )}
