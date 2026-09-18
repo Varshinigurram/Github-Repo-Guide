@@ -28,6 +28,7 @@ interface ProjectStructureExplorerProps {
   structure?: RepositoryStructure
   fileContents?: RepositoryFileContents
   evidence?: RepositoryEvidencePackage
+  externalSelectedPath?: string | null
 }
 
 // Tree node definition for building visual hierarchy from flat paths
@@ -46,7 +47,12 @@ function formatBytes(bytes?: number): string {
   return bytes + ' B'
 }
 
-export function ProjectStructureExplorer({ structure, fileContents, evidence }: ProjectStructureExplorerProps) {
+export function ProjectStructureExplorer({
+  structure,
+  fileContents,
+  evidence,
+  externalSelectedPath
+}: ProjectStructureExplorerProps) {
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set())
@@ -105,8 +111,9 @@ export function ProjectStructureExplorer({ structure, fileContents, evidence }: 
     return files.filter((f) => f.path.toLowerCase().includes(q))
   }, [files, searchQuery, isSearchActive])
 
-  // Select first important file by default if none selected
-  const activeSelectedPath = selectedPath || (importantFiles.length > 0 ? importantFiles[0] : files[0]?.path || null)
+  // Select externalSelectedPath or selectedPath or fallback
+  const activeSelectedPath =
+    selectedPath || externalSelectedPath || (importantFiles.length > 0 ? importantFiles[0] : files[0]?.path || null)
 
   // Find fetched file content evidence for active selected path
   const selectedContentEvidence = useMemo(() => {
@@ -246,7 +253,7 @@ export function ProjectStructureExplorer({ structure, fileContents, evidence }: 
   }
 
   return (
-    <Card className="border-border/60 bg-card shadow-xs">
+    <Card id="structure-explorer" className="border-border/60 bg-card shadow-xs">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-2.5">

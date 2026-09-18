@@ -8,6 +8,7 @@ import { RepositoryOverview } from '@/components/repository/RepositoryOverview'
 import { RepositoryArchitecture } from '@/components/repository/RepositoryArchitecture'
 import { ApiExplorer } from '@/components/repository/ApiExplorer'
 import { RepositoryHealth } from '@/components/repository/RepositoryHealth'
+import { RepositoryAsk } from '@/components/repository/RepositoryAsk'
 import { ProjectStructureExplorer } from '@/components/repository/ProjectStructureExplorer'
 import { EvidenceMetrics } from '@/components/repository/EvidenceMetrics'
 import { TechnologyStack } from '@/components/repository/TechnologyStack'
@@ -25,6 +26,7 @@ export function App() {
   const [analysisData, setAnalysisData] = useState<AnalyzeSuccessResponse['data'] | null>(null)
   const [errorCode, setErrorCode] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [selectedCitationFile, setSelectedCitationFile] = useState<string | null>(null)
 
   const handleAnalyze = async (url: string) => {
     if (state === 'analyzing') return
@@ -32,6 +34,7 @@ export function App() {
     setState('analyzing')
     setErrorCode(null)
     setErrorMessage(null)
+    setSelectedCitationFile(null)
 
     try {
       const response = await apiClient.analyzeRepository(url)
@@ -64,6 +67,15 @@ export function App() {
     setErrorCode(null)
     setErrorMessage(null)
     setCurrentUrl('')
+    setSelectedCitationFile(null)
+  }
+
+  const handleCitationSelect = (path: string) => {
+    setSelectedCitationFile(path)
+    const el = document.getElementById('structure-explorer')
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth' })
+    }
   }
 
   return (
@@ -135,14 +147,22 @@ export function App() {
               {/* 5. Repository Health Intelligence */}
               <RepositoryHealth health={analysisData.health} />
 
-              {/* 6. Project Structure & Important Files Explorer */}
+              {/* 6. Ask Repository Q&A */}
+              <RepositoryAsk
+                url={currentUrl}
+                repoFullName={analysisData.repository.fullName}
+                onSelectCitationFile={handleCitationSelect}
+              />
+
+              {/* 7. Project Structure & Important Files Explorer */}
               <ProjectStructureExplorer
                 structure={analysisData.structure}
                 fileContents={analysisData.fileContents}
                 evidence={analysisData.evidence}
+                externalSelectedPath={selectedCitationFile}
               />
 
-              {/* 7. Evidence Scope + Technology Stack */}
+              {/* 8. Evidence Scope + Technology Stack */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2">
                   <TechnologyStack technologies={analysisData.technologies} />
@@ -156,7 +176,7 @@ export function App() {
                 </div>
               </div>
 
-              {/* 8. Repository Evidence Lists */}
+              {/* 9. Repository Evidence Lists */}
               <EvidenceLists
                 entryPoints={analysisData.evidence?.entryPoints}
                 configFiles={analysisData.evidence?.configFiles}
@@ -165,7 +185,7 @@ export function App() {
                 importantFiles={analysisData.structure?.importantFiles}
               />
 
-              {/* 9. Setup / Run Information */}
+              {/* 10. Setup / Run Information */}
               <SetupGuide setup={analysisData.analysis?.setup} />
             </div>
           )}
