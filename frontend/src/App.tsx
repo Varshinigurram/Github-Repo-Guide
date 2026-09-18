@@ -8,6 +8,7 @@ import { RepositoryOverview } from '@/components/repository/RepositoryOverview'
 import { RepositoryArchitecture } from '@/components/repository/RepositoryArchitecture'
 import { ApiExplorer } from '@/components/repository/ApiExplorer'
 import { RepositoryHealth } from '@/components/repository/RepositoryHealth'
+import { ProjectStructureExplorer } from '@/components/repository/ProjectStructureExplorer'
 import { EvidenceMetrics } from '@/components/repository/EvidenceMetrics'
 import { TechnologyStack } from '@/components/repository/TechnologyStack'
 import { EvidenceLists } from '@/components/repository/EvidenceLists'
@@ -134,7 +135,14 @@ export function App() {
               {/* 5. Repository Health Intelligence */}
               <RepositoryHealth health={analysisData.health} />
 
-              {/* 6. Evidence Scope + Technology Stack */}
+              {/* 6. Project Structure & Important Files Explorer */}
+              <ProjectStructureExplorer
+                structure={analysisData.structure}
+                fileContents={analysisData.fileContents}
+                evidence={analysisData.evidence}
+              />
+
+              {/* 7. Evidence Scope + Technology Stack */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2">
                   <TechnologyStack technologies={analysisData.technologies} />
@@ -148,7 +156,7 @@ export function App() {
                 </div>
               </div>
 
-              {/* 7. Repository Evidence Lists */}
+              {/* 8. Repository Evidence Lists */}
               <EvidenceLists
                 entryPoints={analysisData.evidence?.entryPoints}
                 configFiles={analysisData.evidence?.configFiles}
@@ -157,7 +165,7 @@ export function App() {
                 importantFiles={analysisData.structure?.importantFiles}
               />
 
-              {/* 8. Setup / Run Information */}
+              {/* 9. Setup / Run Information */}
               <SetupGuide setup={analysisData.analysis?.setup} />
             </div>
           )}
