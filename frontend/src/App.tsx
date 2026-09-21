@@ -1,6 +1,9 @@
 import { useState } from 'react'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Header } from '@/components/layout/Header'
+import { WorkspaceNav } from '@/components/layout/WorkspaceNav'
+import { WorkspaceStatusStrip } from '@/components/workspace/WorkspaceStatusStrip'
+import { BackToTop } from '@/components/common/BackToTop'
 import { RepositoryAnalyzer } from '@/components/repository/RepositoryAnalyzer'
 import { AnalysisLoading } from '@/components/repository/AnalysisLoading'
 import { RepositoryHeader } from '@/components/repository/RepositoryHeader'
@@ -72,7 +75,7 @@ export function App() {
 
   const handleCitationSelect = (path: string) => {
     setSelectedCitationFile(path)
-    const el = document.getElementById('structure-explorer')
+    const el = document.getElementById('project-structure') || document.getElementById('structure-explorer')
     if (el) {
       el.scrollIntoView({ behavior: 'smooth' })
     }
@@ -87,6 +90,9 @@ export function App() {
           isAnalyzing={state === 'analyzing'}
           hasData={state === 'success' || state === 'error'}
         />
+
+        {/* Sticky Workspace Navigation Strip (Only visible when analysis is successful) */}
+        {state === 'success' && <WorkspaceNav />}
 
         {/* Main Content Workspace Container */}
         <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -126,70 +132,82 @@ export function App() {
 
           {/* Success View: Structured Repository Intelligence Overview */}
           {state === 'success' && analysisData && (
-            <div className="space-y-8 animate-in fade-in duration-300">
-              {/* 1. Repository Header Banner */}
-              <RepositoryHeader
-                repository={analysisData.repository}
-                structure={analysisData.structure}
-                technologies={analysisData.technologies}
-                onReset={handleReset}
-              />
+            <div className="space-y-10 animate-in fade-in duration-300">
+              {/* Technical Workspace Status Strip */}
+              <WorkspaceStatusStrip data={analysisData} />
 
-              {/* 2. Repository Overview */}
-              <RepositoryOverview analysis={analysisData.analysis} />
+              {/* 1. Repository Header Banner & Overview Section */}
+              <section id="repository-overview" className="scroll-mt-28 space-y-8">
+                <RepositoryHeader
+                  repository={analysisData.repository}
+                  structure={analysisData.structure}
+                  technologies={analysisData.technologies}
+                  onReset={handleReset}
+                />
+                <RepositoryOverview analysis={analysisData.analysis} />
+                <SetupGuide setup={analysisData.analysis?.setup} />
+              </section>
 
-              {/* 3. Repository Architecture Map */}
-              <RepositoryArchitecture architecture={analysisData.architecture} />
+              {/* 2. Project Structure & Important Files Explorer */}
+              <section id="project-structure" className="scroll-mt-28 space-y-8">
+                <ProjectStructureExplorer
+                  structure={analysisData.structure}
+                  fileContents={analysisData.fileContents}
+                  evidence={analysisData.evidence}
+                  externalSelectedPath={selectedCitationFile}
+                />
 
-              {/* 4. API Explorer */}
-              <ApiExplorer api={analysisData.api} />
-
-              {/* 5. Repository Health Intelligence */}
-              <RepositoryHealth health={analysisData.health} />
-
-              {/* 6. Ask Repository Q&A */}
-              <RepositoryAsk
-                url={currentUrl}
-                repoFullName={analysisData.repository.fullName}
-                onSelectCitationFile={handleCitationSelect}
-              />
-
-              {/* 7. Project Structure & Important Files Explorer */}
-              <ProjectStructureExplorer
-                structure={analysisData.structure}
-                fileContents={analysisData.fileContents}
-                evidence={analysisData.evidence}
-                externalSelectedPath={selectedCitationFile}
-              />
-
-              {/* 8. Evidence Scope + Technology Stack */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2">
-                  <TechnologyStack technologies={analysisData.technologies} />
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <div className="lg:col-span-2">
+                    <TechnologyStack technologies={analysisData.technologies} />
+                  </div>
+                  <div>
+                    <EvidenceMetrics
+                      structure={analysisData.structure}
+                      fileContents={analysisData.fileContents}
+                      completeness={analysisData.evidence?.completeness}
+                    />
+                  </div>
                 </div>
-                <div>
-                  <EvidenceMetrics
-                    structure={analysisData.structure}
-                    fileContents={analysisData.fileContents}
-                    completeness={analysisData.evidence?.completeness}
-                  />
-                </div>
-              </div>
 
-              {/* 9. Repository Evidence Lists */}
-              <EvidenceLists
-                entryPoints={analysisData.evidence?.entryPoints}
-                configFiles={analysisData.evidence?.configFiles}
-                manifestFiles={analysisData.evidence?.manifestFiles}
-                documentationFiles={analysisData.evidence?.documentationFiles}
-                importantFiles={analysisData.structure?.importantFiles}
-              />
+                <EvidenceLists
+                  entryPoints={analysisData.evidence?.entryPoints}
+                  configFiles={analysisData.evidence?.configFiles}
+                  manifestFiles={analysisData.evidence?.manifestFiles}
+                  documentationFiles={analysisData.evidence?.documentationFiles}
+                  importantFiles={analysisData.structure?.importantFiles}
+                />
+              </section>
 
-              {/* 10. Setup / Run Information */}
-              <SetupGuide setup={analysisData.analysis?.setup} />
+              {/* 3. Repository Health Intelligence Section */}
+              <section id="repository-health" className="scroll-mt-28">
+                <RepositoryHealth health={analysisData.health} />
+              </section>
+
+              {/* 4. Repository Architecture Map Section */}
+              <section id="repository-architecture" className="scroll-mt-28">
+                <RepositoryArchitecture architecture={analysisData.architecture} />
+              </section>
+
+              {/* 5. API Explorer Section */}
+              <section id="api-explorer" className="scroll-mt-28">
+                <ApiExplorer api={analysisData.api} />
+              </section>
+
+              {/* 6. Ask Repository Q&A Section */}
+              <section id="repository-ask" className="scroll-mt-28">
+                <RepositoryAsk
+                  url={currentUrl}
+                  repoFullName={analysisData.repository.fullName}
+                  onSelectCitationFile={handleCitationSelect}
+                />
+              </section>
             </div>
           )}
         </main>
+
+        {/* Global Floating Back-to-Top Button */}
+        <BackToTop />
       </div>
     </TooltipProvider>
   )
