@@ -26,11 +26,17 @@ export function RepositoryAnalyzer({ onAnalyze, isAnalyzing }: RepositoryAnalyze
       return false
     }
 
+    // Explicitly detect sub-resource URLs (issues, pull requests, actions, wiki, projects)
+    if (/\/(issues|pull|pulls|actions|wiki|projects)(\/.*)?$/i.test(trimmed)) {
+      setValidationError('Enter a valid public GitHub repository URL, not an issue, pull request, or wiki page.')
+      return false
+    }
+
     const isFullUrl = /^https?:\/\/(www\.)?github\.com\/[\w.-]+\/[\w.-]+(\/.*)?$/i.test(trimmed)
     const isOwnerRepo = /^[\w.-]+\/[\w.-]+$/.test(trimmed)
 
     if (!isFullUrl && !isOwnerRepo) {
-      setValidationError('Enter a valid GitHub URL (e.g. https://github.com/facebook/react) or format owner/repo.')
+      setValidationError('Enter a valid public GitHub repository URL (e.g. https://github.com/facebook/react or owner/repo).')
       return false
     }
 
@@ -40,12 +46,14 @@ export function RepositoryAnalyzer({ onAnalyze, isAnalyzing }: RepositoryAnalyze
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    if (isAnalyzing) return // Rapid interaction protection
     if (validateUrl(url)) {
       onAnalyze(url.trim())
     }
   }
 
   const handleSampleClick = (sampleRepo: string) => {
+    if (isAnalyzing) return // Rapid interaction protection
     const fullUrl = `https://github.com/${sampleRepo}`
     setUrl(fullUrl)
     setValidationError(null)
@@ -76,6 +84,7 @@ export function RepositoryAnalyzer({ onAnalyze, isAnalyzing }: RepositoryAnalyze
               </div>
               <Input
                 type="text"
+                aria-label="GitHub Repository URL"
                 placeholder="https://github.com/facebook/react or owner/repo"
                 value={url}
                 onChange={(e) => {
@@ -90,7 +99,7 @@ export function RepositoryAnalyzer({ onAnalyze, isAnalyzing }: RepositoryAnalyze
                   type="submit"
                   disabled={isAnalyzing || !url.trim()}
                   size="sm"
-                  className="h-9 px-4 font-medium gap-1.5 shadow-xs"
+                  className="h-9 px-4 font-medium gap-1.5 shadow-xs cursor-pointer disabled:cursor-not-allowed"
                 >
                   {isAnalyzing ? (
                     'Analyzing...'
@@ -105,7 +114,10 @@ export function RepositoryAnalyzer({ onAnalyze, isAnalyzing }: RepositoryAnalyze
             </div>
 
             {validationError && (
-              <p className="text-xs text-destructive flex items-center gap-1 font-medium pl-1">
+              <p
+                role="alert"
+                className="text-xs text-destructive flex items-center gap-1 font-medium pl-1 animate-in fade-in duration-150"
+              >
                 {validationError}
               </p>
             )}
@@ -122,7 +134,8 @@ export function RepositoryAnalyzer({ onAnalyze, isAnalyzing }: RepositoryAnalyze
                   type="button"
                   onClick={() => handleSampleClick(sample.name)}
                   disabled={isAnalyzing}
-                  className="flex items-center justify-between p-2.5 text-left rounded-lg border border-border/60 bg-muted/20 hover:bg-muted/50 transition-colors group cursor-pointer text-xs disabled:opacity-50"
+                  aria-label={`Analyze sample repository ${sample.label}`}
+                  className="flex items-center justify-between p-2.5 text-left rounded-lg border border-border/60 bg-muted/20 hover:bg-muted/50 transition-colors group cursor-pointer text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <div>
                     <span className="font-mono font-medium text-foreground group-hover:text-primary transition-colors block">

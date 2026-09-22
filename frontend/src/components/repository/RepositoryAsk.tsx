@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   MessageSquareCode,
   Sparkles,
@@ -64,10 +64,22 @@ export function RepositoryAsk({ url, repoFullName, onSelectCitationFile }: Repos
   const [history, setHistory] = useState<AskHistoryItem[]>([])
   const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null)
 
+  // 13L-M: Repository switching protection - reset Q&A state when target repository URL changes
+  useEffect(() => {
+    setQuestion('')
+    setIsAsking(false)
+    setCurrentResult(null)
+    setActiveQuestionText(null)
+    setAskError(null)
+    setHistory([])
+    setSelectedHistoryId(null)
+  }, [url])
+
   const isQuestionValid = question.trim().length > 0 && question.trim().length <= 1000
 
   const handleAskSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault()
+    // 13L-N: Rapid interaction protection
     if (!url || !isQuestionValid || isAsking) return
 
     const trimmedQuestion = question.trim()
@@ -93,15 +105,23 @@ export function RepositoryAsk({ url, repoFullName, onSelectCitationFile }: Repos
         setHistory((prev) => [newItem, ...prev].slice(0, 10))
         setQuestion('')
       } else {
-        setAskError({ code: 'INVALID_RESPONSE', message: 'Failed to receive grounded answer payload.' })
+        setAskError({ code: 'INVALID_RESPONSE', message: 'Failed to receive grounded answer payload from backend.' })
       }
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setAskError({ code: err.code, message: err.message })
+        let mappedMsg = err.message
+        if (err.code === 'AI_TIMEOUT' || err.code === 'OPENROUTER_TIMEOUT') {
+          mappedMsg = 'The AI analysis took too long to respond.'
+        } else if (err.code === 'AI_RATE_LIMITED' || err.code === 'OPENROUTER_RATE_LIMITED') {
+          mappedMsg = 'AI request limit reached. Please try again later.'
+        } else if (err.code === 'AI_PROVIDER_ERROR') {
+          mappedMsg = 'The AI analysis service is temporarily unavailable.'
+        }
+        setAskError({ code: err.code, message: mappedMsg })
       } else if (err instanceof Error) {
-        setAskError({ code: 'NETWORK_ERROR', message: err.message })
+        setAskError({ code: 'NETWORK_ERROR', message: 'Unable to connect to the analysis service. Make sure backend is running.' })
       } else {
-        setAskError({ code: 'UNKNOWN_ERROR', message: 'An unexpected error occurred.' })
+        setAskError({ code: 'UNKNOWN_ERROR', message: 'An unexpected error occurred while asking question.' })
       }
     } finally {
       setIsAsking(false)
@@ -116,10 +136,12 @@ export function RepositoryAsk({ url, repoFullName, onSelectCitationFile }: Repos
   }
 
   const handleSuggestionClick = (suggestion: string) => {
+    if (isAsking) return
     setQuestion(suggestion)
   }
 
   const handleRestoreHistoryItem = (item: AskHistoryItem) => {
+    if (isAsking) return
     setSelectedHistoryId(item.id)
     setCurrentResult(item.result)
     setActiveQuestionText(item.question)
@@ -142,7 +164,7 @@ export function RepositoryAsk({ url, repoFullName, onSelectCitationFile }: Repos
     return (
       <Card className="border-border/60 bg-card shadow-xs">
         <CardContent className="p-6 text-center text-xs font-mono text-muted-foreground">
-          Analyze a repository first to ask grounded questions.
+          No grounded answer is available yet. Analyze a repository first to ask questions.
         </CardContent>
       </Card>
     )
@@ -179,6 +201,7 @@ export function RepositoryAsk({ url, repoFullName, onSelectCitationFile }: Repos
         <form onSubmit={handleAskSubmit} className="space-y-3">
           <div className="relative">
             <textarea
+              aria-label="Repository question input"
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
               onKeyDown={handleKeyDown}
@@ -212,7 +235,7 @@ export function RepositoryAsk({ url, repoFullName, onSelectCitationFile }: Repos
                   type="button"
                   onClick={() => handleSuggestionClick(sug)}
                   disabled={isAsking}
-                  className="text-[11px] font-mono px-2 py-0.5 rounded border border-border/60 bg-muted/20 hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors cursor-pointer disabled:opacity-50"
+                  className="text-[11px] font-mono px-2 py-0.5 rounded border border-border/60 bg-muted/20 hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {sug}
                 </button>
@@ -224,7 +247,7 @@ export function RepositoryAsk({ url, repoFullName, onSelectCitationFile }: Repos
               type="submit"
               disabled={!isQuestionValid || isAsking}
               size="sm"
-              className="h-8 px-4 text-xs font-medium gap-1.5 shadow-xs shrink-0 self-end sm:self-auto"
+              className="h-8 px-4 text-xs font-medium gap-1.5 shadow-xs shrink-0 self-end sm:self-auto cursor-pointer disabled:cursor-not-allowed"
             >
               {isAsking ? (
                 <>
@@ -243,7 +266,11 @@ export function RepositoryAsk({ url, repoFullName, onSelectCitationFile }: Repos
 
         {/* Loading State Indicator */}
         {isAsking && (
-          <div className="p-6 rounded-xl border border-primary/20 bg-primary/5 flex items-center gap-3 animate-in fade-in duration-200">
+          <div
+            role="status"
+            aria-live="polite"
+            className="p-6 rounded-xl border border-primary/20 bg-primary/5 flex items-center gap-3 animate-in fade-in duration-200"
+          >
             <Loader2 className="h-5 w-5 text-primary animate-spin shrink-0" />
             <div className="space-y-0.5">
               <span className="text-xs font-mono font-bold text-foreground block">
@@ -258,12 +285,28 @@ export function RepositoryAsk({ url, repoFullName, onSelectCitationFile }: Repos
 
         {/* Error Alert Banner */}
         {askError && (
-          <div className="p-4 rounded-xl border border-destructive/40 bg-destructive/5 space-y-1 text-xs font-mono animate-in fade-in duration-200">
-            <div className="flex items-center gap-2 text-destructive font-bold">
-              <AlertTriangle className="h-4 w-4 shrink-0" />
-              <span>Ask Repository Error ({askError.code})</span>
+          <div
+            role="alert"
+            className="p-4 rounded-xl border border-destructive/40 bg-destructive/5 space-y-2 text-xs font-mono animate-in fade-in duration-200"
+          >
+            <div className="flex items-center justify-between text-destructive font-bold">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 shrink-0" />
+                <span>Ask Repository Error ({askError.code})</span>
+              </div>
             </div>
-            <p className="text-foreground/90 pl-6">{askError.message}</p>
+            <p className="text-foreground/90 pl-6 font-sans">{askError.message}</p>
+            <div className="pl-6 pt-1">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => handleAskSubmit()}
+                className="h-7 text-[11px] font-mono gap-1 border-destructive/30 text-destructive hover:bg-destructive/10 cursor-pointer"
+              >
+                Try Again
+              </Button>
+            </div>
           </div>
         )}
 
@@ -288,7 +331,7 @@ export function RepositoryAsk({ url, repoFullName, onSelectCitationFile }: Repos
                     variant="outline"
                     size="sm"
                     onClick={() => handleCopyAnswer(currentResult.answer)}
-                    className="h-7 text-xs font-mono gap-1 px-2"
+                    className="h-7 text-xs font-mono gap-1 px-2 cursor-pointer"
                   >
                     {copiedAnswer ? (
                       <>
@@ -312,12 +355,12 @@ export function RepositoryAsk({ url, repoFullName, onSelectCitationFile }: Repos
                   Grounded Answer
                 </h4>
                 <div className="text-xs sm:text-sm text-foreground/90 leading-relaxed font-sans whitespace-pre-wrap p-3 rounded-lg bg-muted/10 border border-border/40">
-                  {currentResult.answer}
+                  {currentResult.answer || 'No grounded answer is available yet.'}
                 </div>
               </div>
 
               {/* Cited Evidence List */}
-              {currentResult.evidence && currentResult.evidence.length > 0 && (
+              {currentResult.evidence && currentResult.evidence.length > 0 ? (
                 <div className="space-y-2 pt-2 border-t border-border/40">
                   <h4 className="text-xs font-semibold text-foreground uppercase tracking-wider font-mono flex items-center gap-1.5">
                     <FileCode2 className="h-3.5 w-3.5 text-emerald-400" />
@@ -351,6 +394,10 @@ export function RepositoryAsk({ url, repoFullName, onSelectCitationFile }: Repos
                       </div>
                     ))}
                   </div>
+                </div>
+              ) : (
+                <div className="p-3 rounded-lg border border-border/40 bg-muted/10 text-xs font-mono text-muted-foreground">
+                  No additional evidence citations were returned for this question.
                 </div>
               )}
 
@@ -403,7 +450,7 @@ export function RepositoryAsk({ url, repoFullName, onSelectCitationFile }: Repos
                     <div className="truncate pr-3">
                       <span className="truncate block font-sans">{item.question}</span>
                       <span className="text-[10px] text-muted-foreground block font-mono">
-                        {item.timestamp} • {item.result.evidence.length} evidence citations
+                        {item.timestamp} • {item.result.evidence?.length || 0} evidence citations
                       </span>
                     </div>
                     {getConfidenceBadge(item.result.confidence)}

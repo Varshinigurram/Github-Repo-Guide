@@ -8,7 +8,11 @@ interface AnalysisLoadingProps {
 
 export function AnalysisLoading({ url }: AnalysisLoadingProps) {
   return (
-    <div className="w-full max-w-7xl mx-auto space-y-6 animate-in fade-in duration-200">
+    <div
+      role="status"
+      aria-live="polite"
+      className="w-full max-w-7xl mx-auto space-y-6 animate-in fade-in duration-200"
+    >
       {/* Top Banner Analysis Status */}
       <Card className="border-border/80 bg-card shadow-sm">
         <CardContent className="p-5 sm:p-6">
@@ -20,16 +24,19 @@ export function AnalysisLoading({ url }: AnalysisLoadingProps) {
               <div>
                 <div className="flex items-center gap-2">
                   <span className="font-mono text-xs uppercase tracking-wider text-primary font-semibold">
-                    ANALYZING REPOSITORY
+                    ANALYZING REPOSITORY...
                   </span>
                 </div>
                 <p className="text-sm font-mono text-foreground font-medium truncate max-w-md mt-0.5">
                   {url || 'Fetching GitHub repository analysis...'}
                 </p>
+                <p className="text-xs text-muted-foreground mt-1 font-sans">
+                  Collecting repository metadata, structure, dependencies, and evidence.
+                </p>
               </div>
             </div>
 
-            {/* Indeterminate Analysis Steps Feedback */}
+            {/* Factual Analysis Operations Summary */}
             <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
               <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-border/60 bg-muted/30 font-medium">
                 <FileCode2 className="h-3.5 w-3.5 text-primary" />

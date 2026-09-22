@@ -12,7 +12,8 @@ import {
   ChevronDown,
   Layers,
   Sparkles,
-  ShieldCheck
+  ShieldCheck,
+  FileWarning
 } from 'lucide-react'
 import {
   type RepositoryStructure,
@@ -31,7 +32,6 @@ interface ProjectStructureExplorerProps {
   externalSelectedPath?: string | null
 }
 
-// Tree node definition for building visual hierarchy from flat paths
 interface TreeNode {
   name: string
   path: string
@@ -73,7 +73,6 @@ export function ProjectStructureExplorer({
   const treeRoot = useMemo(() => {
     const root: Record<string, TreeNode> = {}
 
-    // Helper to insert path into tree
     const insertPath = (pathStr: string, itemType: 'file' | 'directory', size?: number) => {
       const parts = pathStr.split('/').filter(Boolean)
       let current = root
@@ -103,7 +102,6 @@ export function ProjectStructureExplorer({
     return root
   }, [directories, files])
 
-  // Filter tree nodes by search query 100% in local state
   const isSearchActive = searchQuery.trim().length > 0
   const filteredFiles = useMemo(() => {
     if (!isSearchActive) return []
@@ -111,7 +109,7 @@ export function ProjectStructureExplorer({
     return files.filter((f) => f.path.toLowerCase().includes(q))
   }, [files, searchQuery, isSearchActive])
 
-  // Select externalSelectedPath or selectedPath or fallback
+  // Active selected file path
   const activeSelectedPath =
     selectedPath || externalSelectedPath || (importantFiles.length > 0 ? importantFiles[0] : files[0]?.path || null)
 
@@ -311,7 +309,7 @@ export function ProjectStructureExplorer({
                   >
                     <span>{path}</span>
                     {hasFetchedContent && (
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shrink-0" />
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shrink-0" title="Content Fetched" />
                     )}
                   </button>
                 )
@@ -336,6 +334,7 @@ export function ProjectStructureExplorer({
               <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
               <Input
                 type="text"
+                aria-label="Search inspected repository files"
                 placeholder="Search inspected files..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -391,7 +390,7 @@ export function ProjectStructureExplorer({
                   variant="outline"
                   size="sm"
                   onClick={() => handleCopyContent(selectedContentEvidence.content!)}
-                  className="h-7 text-xs font-mono gap-1.5 px-2.5"
+                  className="h-7 text-xs font-mono gap-1.5 px-2.5 cursor-pointer"
                 >
                   {copied ? (
                     <>
@@ -421,7 +420,7 @@ export function ProjectStructureExplorer({
 
                   <div className="flex items-center gap-1.5 font-mono text-xs">
                     {getEvidenceBadge(activeSelectedPath)}
-                    {selectedContentEvidence?.size && (
+                    {selectedContentEvidence?.size !== undefined && (
                       <span className="text-[10px] text-muted-foreground">
                         {formatBytes(selectedContentEvidence.size)}
                       </span>
@@ -429,35 +428,49 @@ export function ProjectStructureExplorer({
                   </div>
                 </div>
 
-                {/* Content Box / Unavailable Notice */}
-                {selectedContentEvidence && selectedContentEvidence.content ? (
-                  <div className="space-y-0">
-                    {selectedContentEvidence.truncated && (
-                      <div className="px-3 py-1.5 bg-amber-500/10 border-b border-amber-500/20 text-amber-300 text-[11px] font-mono flex items-center gap-1.5">
-                        <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                        <span>File content was truncated due to analysis size limits.</span>
-                      </div>
-                    )}
-                    <pre className="p-4 font-mono text-xs leading-relaxed text-slate-100 bg-slate-950 overflow-x-auto max-h-[420px] whitespace-pre selection:bg-emerald-950 selection:text-emerald-300">
-                      <code>{selectedContentEvidence.content}</code>
-                    </pre>
-                  </div>
+                {/* 13L-K File Content Edge Cases Presentation */}
+                {selectedContentEvidence ? (
+                  selectedContentEvidence.content !== null && selectedContentEvidence.content !== undefined ? (
+                    <div className="space-y-0">
+                      {selectedContentEvidence.truncated && (
+                        <div className="px-3 py-1.5 bg-amber-500/10 border-b border-amber-500/20 text-amber-300 text-[11px] font-mono flex items-center gap-1.5">
+                          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                          <span>Content truncated at inspection limit</span>
+                        </div>
+                      )}
+                      <pre className="p-4 font-mono text-xs leading-relaxed text-slate-100 bg-slate-950 overflow-x-auto max-h-[420px] whitespace-pre selection:bg-emerald-950 selection:text-emerald-300">
+                        <code>{selectedContentEvidence.content}</code>
+                      </pre>
+                    </div>
+                  ) : (
+                    <div className="p-8 text-center space-y-2">
+                      <FileWarning className="h-8 w-8 text-amber-400 mx-auto opacity-75" />
+                      <p className="text-xs font-mono text-foreground font-semibold">
+                        {selectedContentEvidence.skipReason?.toLowerCase().includes('binary')
+                          ? 'Binary or unsupported file'
+                          : 'Content not fetched'}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground max-w-sm mx-auto leading-relaxed font-mono">
+                        {selectedContentEvidence.skipReason ||
+                          'The backend analyzer selects key important files for content inspection to remain within bounds.'}
+                      </p>
+                    </div>
+                  )
                 ) : (
                   <div className="p-8 text-center space-y-2">
                     <ShieldCheck className="h-8 w-8 text-muted-foreground mx-auto opacity-50" />
                     <p className="text-xs font-mono text-foreground font-semibold">
-                      File content was not included in the inspected evidence package.
+                      Content not fetched
                     </p>
-                    <p className="text-[11px] text-muted-foreground max-w-sm mx-auto leading-relaxed">
-                      {selectedContentEvidence?.skipReason ||
-                        'The backend analyzer selects key important files for content inspection to remain within bounds.'}
+                    <p className="text-[11px] text-muted-foreground max-w-sm mx-auto leading-relaxed font-mono">
+                      This file was indexed in the repository tree but its contents were not fetched into the evidence package.
                     </p>
                   </div>
                 )}
               </div>
             ) : (
               <div className="p-12 text-center border border-border/60 rounded-lg bg-background text-xs font-mono text-muted-foreground">
-                Select a file from the tree or important files list to view its evidence content.
+                No file content was available for inspection. Select a file from the tree to view evidence.
               </div>
             )}
           </div>
