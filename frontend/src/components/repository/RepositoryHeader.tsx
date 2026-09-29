@@ -43,7 +43,7 @@ export function RepositoryHeader({ repository, structure, technologies, onReset 
             variant="ghost"
             size="sm"
             onClick={onReset}
-            className="text-xs text-muted-foreground hover:text-foreground gap-1 px-2 h-7"
+            className="text-xs text-muted-foreground hover:text-foreground gap-1 px-2 h-7 cursor-pointer focus-visible:ring-1 focus-visible:ring-primary"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
             <span>Analyze another repository</span>
@@ -53,7 +53,7 @@ export function RepositoryHeader({ repository, structure, technologies, onReset 
             href={repository.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary rounded px-1 py-0.5"
           >
             <span>View on GitHub</span>
             <ExternalLink className="h-3.5 w-3.5" />
@@ -63,34 +63,34 @@ export function RepositoryHeader({ repository, structure, technologies, onReset 
         {/* Title & Description */}
         <div className="space-y-1.5">
           <div className="flex items-center flex-wrap gap-2.5">
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground font-mono">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground font-mono break-all sm:break-words max-w-full">
               {repository.fullName}
             </h1>
 
             {repository.language && (
-              <Badge variant="secondary" className="font-mono text-xs">
+              <Badge variant="secondary" className="font-mono text-xs shrink-0">
                 {repository.language}
               </Badge>
             )}
 
             {repository.isPrivate ? (
-              <Badge variant="outline" className="text-destructive border-destructive/30 text-xs">
+              <Badge variant="outline" className="text-destructive border-destructive/30 text-xs shrink-0">
                 Private
               </Badge>
             ) : (
-              <Badge variant="outline" className="text-emerald-500 border-emerald-500/30 text-xs">
+              <Badge variant="outline" className="text-emerald-500 border-emerald-500/30 text-xs shrink-0">
                 Public
               </Badge>
             )}
 
             {repository.archived && (
-              <Badge variant="outline" className="text-amber-500 border-amber-500/30 text-xs">
+              <Badge variant="outline" className="text-amber-500 border-amber-500/30 text-xs shrink-0">
                 Archived
               </Badge>
             )}
           </div>
 
-          <p className="text-sm text-muted-foreground leading-relaxed max-w-4xl">
+          <p className="text-sm text-muted-foreground leading-relaxed max-w-4xl break-words">
             {repository.description || 'No description provided for this repository.'}
           </p>
         </div>
@@ -117,13 +117,13 @@ export function RepositoryHeader({ repository, structure, technologies, onReset 
 
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-border/60 bg-muted/30 text-muted-foreground">
             <GitBranch className="h-3.5 w-3.5 text-purple-500" />
-            <span className="font-mono text-foreground">{repository.defaultBranch}</span>
+            <span className="font-mono text-foreground truncate max-w-[120px]">{repository.defaultBranch}</span>
           </div>
 
           {repository.license && (
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-border/60 bg-muted/30 text-muted-foreground">
               <Shield className="h-3.5 w-3.5 text-indigo-500" />
-              <span>{repository.license}</span>
+              <span className="truncate max-w-[120px]">{repository.license}</span>
             </div>
           )}
 

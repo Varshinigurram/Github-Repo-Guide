@@ -42,14 +42,12 @@ export function ApiExplorer({ api }: ApiExplorerProps) {
   const specifications = api?.specifications || []
   const limitations = api?.limitations || []
 
-  // Extract unique HTTP methods that actually exist in the detected endpoint data
   const availableMethods = useMemo(() => {
     const methodsSet = new Set<string>()
     endpoints.forEach((ep) => methodsSet.add(ep.method))
     return Array.from(methodsSet)
   }, [endpoints])
 
-  // Filter endpoints by method & search query 100% in local state
   const filteredEndpoints = useMemo(() => {
     return endpoints.filter((ep) => {
       const matchesMethod = selectedMethod === 'ALL' || ep.method === selectedMethod
@@ -133,6 +131,7 @@ export function ApiExplorer({ api }: ApiExplorerProps) {
                 <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   type="text"
+                  aria-label="Search API endpoints by path, framework, or evidence file"
                   placeholder="Search routes by path, framework, or evidence file..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
@@ -140,7 +139,7 @@ export function ApiExplorer({ api }: ApiExplorerProps) {
                 />
               </div>
 
-              {/* Method filter pills (only showing methods present in data) */}
+              {/* Method filter pills */}
               <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0">
                 <span className="text-[11px] font-mono text-muted-foreground mr-1 hidden md:inline">
                   <Filter className="h-3 w-3 inline mr-1" />
@@ -150,7 +149,7 @@ export function ApiExplorer({ api }: ApiExplorerProps) {
                   variant={selectedMethod === 'ALL' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setSelectedMethod('ALL')}
-                  className="h-7 text-[11px] font-mono px-2.5"
+                  className="h-7 text-[11px] font-mono px-2.5 cursor-pointer focus-visible:ring-1 focus-visible:ring-primary"
                 >
                   ALL ({endpoints.length})
                 </Button>
@@ -162,7 +161,7 @@ export function ApiExplorer({ api }: ApiExplorerProps) {
                       variant={selectedMethod === m ? 'default' : 'outline'}
                       size="sm"
                       onClick={() => setSelectedMethod(m)}
-                      className="h-7 text-[11px] font-mono px-2.5"
+                      className="h-7 text-[11px] font-mono px-2.5 cursor-pointer focus-visible:ring-1 focus-visible:ring-primary"
                     >
                       {m} ({count})
                     </Button>
@@ -171,7 +170,7 @@ export function ApiExplorer({ api }: ApiExplorerProps) {
               </div>
             </div>
 
-            {/* Endpoints Table / Card List */}
+            {/* Endpoints Card List */}
             <div className="rounded-lg border border-border/60 overflow-hidden bg-background">
               {filteredEndpoints.length === 0 ? (
                 <div className="p-6 text-center text-xs text-muted-foreground font-mono">
@@ -188,8 +187,18 @@ export function ApiExplorer({ api }: ApiExplorerProps) {
                         className="p-3 hover:bg-muted/10 transition-colors text-xs space-y-2"
                       >
                         <div
+                          role="button"
+                          tabIndex={0}
+                          aria-expanded={isExpanded}
+                          aria-label={`API endpoint ${endpoint.method} ${endpoint.path}`}
                           onClick={() => setExpandedEndpointIdx(isExpanded ? null : idx)}
-                          className="flex items-center justify-between gap-3 cursor-pointer select-none"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault()
+                              setExpandedEndpointIdx(isExpanded ? null : idx)
+                            }
+                          }}
+                          className="flex items-center justify-between gap-3 cursor-pointer select-none rounded p-1 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
                         >
                           <div className="flex items-center gap-2.5 min-w-0 flex-1">
                             <Badge
@@ -200,7 +209,7 @@ export function ApiExplorer({ api }: ApiExplorerProps) {
                             >
                               {endpoint.method}
                             </Badge>
-                            <code className="font-mono text-xs font-semibold text-foreground truncate">
+                            <code className="font-mono text-xs font-semibold text-foreground truncate break-all">
                               {endpoint.path}
                             </code>
                           </div>
@@ -250,7 +259,7 @@ export function ApiExplorer({ api }: ApiExplorerProps) {
                             <div className="space-y-1 text-[11px]">
                               <div>
                                 <span className="text-muted-foreground font-semibold">Declared Path: </span>
-                                <code className="text-emerald-400 font-bold">{endpoint.path}</code>
+                                <code className="text-emerald-400 font-bold break-all">{endpoint.path}</code>
                               </div>
                               {endpoint.framework && (
                                 <div>
@@ -260,7 +269,7 @@ export function ApiExplorer({ api }: ApiExplorerProps) {
                               )}
                               <div>
                                 <span className="text-muted-foreground font-semibold">Evidence Location: </span>
-                                <code className="text-foreground">{endpoint.evidence}</code>
+                                <code className="text-foreground break-all">{endpoint.evidence}</code>
                               </div>
                               {endpoint.confidence && (
                                 <div>
@@ -309,7 +318,7 @@ export function ApiExplorer({ api }: ApiExplorerProps) {
                     </span>
                   </div>
                   {spec.confidence && (
-                    <Badge variant="outline" className="text-[9px] font-mono capitalize">
+                    <Badge variant="outline" className="text-[9px] font-mono capitalize shrink-0">
                       {spec.confidence}
                     </Badge>
                   )}

@@ -41,11 +41,11 @@ function getNodeTypeCategory(type: ArchitectureNodeType): number {
   switch (type) {
     case 'frontend':
     case 'authentication':
-      return 0 // Left column (Tier 1: Client/Auth)
+      return 0
     case 'backend':
     case 'api':
     case 'worker':
-      return 1 // Middle column (Tier 2: Core Application/API)
+      return 1
     case 'database':
     case 'cache':
     case 'queue':
@@ -54,7 +54,7 @@ function getNodeTypeCategory(type: ArchitectureNodeType): number {
     case 'build':
     case 'deployment':
     default:
-      return 2 // Right column (Tier 3: Persistence/Services)
+      return 2
   }
 }
 
@@ -68,12 +68,10 @@ export function RepositoryArchitecture({ architecture }: RepositoryArchitectureP
   const edges = architecture?.edges || []
   const limitations = architecture?.limitations || []
 
-  // Safe valid edges filter
   const validEdges = edges.filter(
     (edge) => nodes.some((n) => n.id === edge.source) && nodes.some((n) => n.id === edge.target)
   )
 
-  // Calculate node positions relative to graph container for SVG connector paths
   useEffect(() => {
     function updatePositions() {
       if (!containerRef.current) return
@@ -109,18 +107,16 @@ export function RepositoryArchitecture({ architecture }: RepositoryArchitectureP
     return (
       <Card className="border-border/60 bg-card shadow-xs">
         <CardContent className="p-6 text-center text-xs text-muted-foreground font-mono">
-          Architecture map unavailable for this analysis.
+          No architecture relationships were detected from the inspected evidence.
         </CardContent>
       </Card>
     )
   }
 
-  // Categorize nodes into 3 deterministic tier columns
   const tier0 = nodes.filter((n) => getNodeTypeCategory(n.type) === 0)
   const tier1 = nodes.filter((n) => getNodeTypeCategory(n.type) === 1)
   const tier2 = nodes.filter((n) => getNodeTypeCategory(n.type) === 2)
 
-  // Fallback if all nodes fall into a single tier
   const tiers = [
     tier0.length > 0 ? tier0 : null,
     tier1.length > 0 ? tier1 : null,
@@ -196,13 +192,11 @@ export function RepositoryArchitecture({ architecture }: RepositoryArchitectureP
               const edgeId = `${edge.source}->${edge.target}`
               const isSelected = selectedEdgeId === edgeId || selectedNodeId === edge.source || selectedNodeId === edge.target
 
-              // Calculate start (right side of src) & end (left side of tgt)
               const x1 = src.x + src.w
               const y1 = src.y + src.h / 2
               const x2 = tgt.x
               const y2 = tgt.y + tgt.h / 2
 
-              // Control points for smooth bezier curve
               const dx = Math.abs(x2 - x1) / 2
               const pathD = `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`
 
@@ -248,12 +242,23 @@ export function RepositoryArchitecture({ architecture }: RepositoryArchitectureP
                   return (
                     <div
                       key={node.id}
+                      role="button"
+                      tabIndex={0}
+                      aria-pressed={isSelected}
+                      aria-label={`Architecture component ${node.label}, type ${node.type}`}
                       data-node-id={node.id}
                       onClick={() => {
                         setSelectedNodeId(node.id === selectedNodeId ? null : node.id)
                         setSelectedEdgeId(null)
                       }}
-                      className={`p-4 rounded-xl border transition-all duration-200 cursor-pointer text-left space-y-2.5 ${
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          setSelectedNodeId(node.id === selectedNodeId ? null : node.id)
+                          setSelectedEdgeId(null)
+                        }
+                      }}
+                      className={`p-4 rounded-xl border transition-all duration-200 cursor-pointer text-left space-y-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
                         isSelected
                           ? 'border-primary bg-primary/10 shadow-md ring-1 ring-primary/40'
                           : 'border-border/80 bg-card/90 hover:border-primary/50 hover:bg-card'
@@ -281,7 +286,6 @@ export function RepositoryArchitecture({ architecture }: RepositoryArchitectureP
                         )}
                       </div>
 
-                      {/* Detected Node Technologies */}
                       {node.technologies && node.technologies.length > 0 && (
                         <div className="flex flex-wrap gap-1 pt-1">
                           {node.technologies.map((tech) => (
@@ -340,7 +344,7 @@ export function RepositoryArchitecture({ architecture }: RepositoryArchitectureP
                 </span>
                 <div className="flex flex-wrap gap-1.5">
                   {selectedNode.evidence.map((ev, i) => (
-                    <code key={i} className="px-2 py-0.5 rounded bg-muted/40 border border-border/60 text-emerald-400 text-[11px]">
+                    <code key={i} className="px-2 py-0.5 rounded bg-muted/40 border border-border/60 text-emerald-400 text-[11px] break-all">
                       {ev}
                     </code>
                   ))}

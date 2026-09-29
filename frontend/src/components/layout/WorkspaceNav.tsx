@@ -91,7 +91,7 @@ export function WorkspaceNav() {
                 type="button"
                 onClick={() => handleNavClick(item.id)}
                 aria-current={isActive ? 'location' : undefined}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-mono font-medium transition-colors shrink-0 cursor-pointer ${
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-mono font-medium transition-colors shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary ${
                   isActive
                     ? 'bg-primary/10 text-emerald-400 font-semibold border border-primary/30 shadow-2xs'
                     : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'

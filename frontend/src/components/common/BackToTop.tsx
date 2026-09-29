@@ -35,9 +35,9 @@ export function BackToTop() {
       type="button"
       onClick={scrollToTop}
       size="icon"
-      aria-label="Back to top"
+      aria-label="Back to top of workspace"
       title="Back to top of workspace"
-      className="fixed bottom-6 right-6 z-40 h-10 w-10 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 transition-opacity duration-200 cursor-pointer border border-primary/20"
+      className="fixed bottom-6 right-6 z-40 h-10 w-10 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 transition-opacity duration-200 cursor-pointer border border-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
     >
       <ArrowUp className="h-5 w-5" />
     </Button>
