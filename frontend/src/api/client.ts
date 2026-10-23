@@ -6,7 +6,10 @@ import {
   ApiClientError
 } from '../types/api.types'
 
-const BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000').replace(/\/$/, '')
+const configuredUrl = import.meta.env.VITE_API_BASE_URL?.trim()
+const BASE_URL = (configuredUrl !== undefined && configuredUrl !== ''
+  ? configuredUrl
+  : (import.meta.env.PROD ? '' : 'http://localhost:5000')).replace(/\/$/, '')
 
 /**
  * Helper to handle fetch responses and parse standard backend error objects.
