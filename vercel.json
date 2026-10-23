@@ -7,7 +7,8 @@
       "entrypoint": "src/app.ts",
       "functions": {
         "src/app.ts": {
-          "maxDuration": 60
+          "maxDuration": 60,
+          "includeFiles": "package.json"
         }
       }
     },
